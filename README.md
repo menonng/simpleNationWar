@@ -4,7 +4,7 @@
 
 [Towns and Nations](https://modrinth.com/plugin/towns-nations) 플러그인을 참고해 Fabric 모드로 다시 설계했다. 다만 이 서버에서 국가는 전쟁보다 **집단 형성**이 목적이라, 3개 국가 고정·명령어 최소화·오프라인 약탈 불가로 크게 단순화했다.
 
-> **현재 단계: 기획 문서.** 코드는 아직 없다. 테스트 대상은 Minecraft 26.3, 26.4 정식 출시 즉시 26.4 로 올린다.
+> **현재 단계: 기획 문서.** 코드는 아직 없다. 테스트 대상은 Minecraft 26.3, 26.4 정식 출시 즉시 26.4 로 올린다. 시즌 1 은 2027-01-16 ~ 02-07(23일). 문서의 일·시간은 모두 현실 시간이다.
 
 같은 서버의 좀비 모드는 [zomApo](https://github.com/menonng/zomApo), 서버 전체 기획(결정 사항, 모드 목록, 시뮬레이션, 일정)은 zomApo 의 [docs/server](https://github.com/menonng/zomApo/blob/HEAD/docs/server/README.md) 에 있다.
 
