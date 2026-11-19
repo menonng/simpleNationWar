@@ -34,13 +34,12 @@
 | `nation.claim` | | `nation`, `added`, `removed`, `total`, `cap` |
 | `nation.relation` | ✔ | `a`, `b`, `from`, `to`, `effectiveAt` |
 | `landmark.captured` | ✔ | `landmark`, `from?`, `to` |
-| `cure.stage` | ✔ | `stage`, `topNation`, `topContributors[]` — 서버 공동 연구 단계 완료 |
+| `vaccine.shard` | ✔ | `person`, `nation`, `total` — 백신 조각 획득 |
 | `zomapo.bloodmoon` | | `phase`(start/end), `result?{areas[], participants[]}` |
 | `zomapo.nest` | | `event`(found/destroyed), `nest`, `participants[]` |
 | `zomapo.daily` | | `globalRamp`, `nations{id: level}`, `serverInfection` |
 | `starforce.success` | | `uuid`, `item`, `star` (8성 이상만) |
 | `zomapo.bloodmoon.notice` | | `startsAt`, `target`(수도 id 또는 camp), `online` — 블러드문 10분 전 예고 |
-| `cure.progress` | | `stage`, `gauge`, `contrib{nation: n}`, `samples{region: n}` |
 | `stats.snapshot` | | `players[{uuid, k, d, a, dPvp, zombieKills, zombieScore, playtime}]` |
 | `rating.submit` | ✔ | `round`, `rater`, `target`, `scores{category: 1~5 \| null}` |
 

@@ -4,9 +4,26 @@
 
 [Towns and Nations](https://modrinth.com/plugin/towns-nations) 플러그인을 참고해 Fabric 모드로 다시 설계했다. 다만 이 서버에서 국가는 전쟁보다 **집단 형성**이 목적이라, 3개 국가 고정·명령어 최소화·오프라인 약탈 불가로 크게 단순화했다.
 
-> **현재 단계: 기획 문서.** 코드는 아직 없다. 테스트 대상은 Minecraft 26.3, 26.4 정식 출시 즉시 26.4 로 올린다. 시즌 1 은 2027-01-16 ~ 02-07(23일). 문서의 일·시간은 모두 현실 시간이다.
+> **현재 단계: 개발 시작.** 빌드 골격, 공개 API(`snw-api`), 순수 로직(닉네임 개인정보 검사, K/D/A 판정, 영토 규칙, 영토 다각형 병합, 한국어 조사), 생존일지 생성기가 들어왔다. 시즌 1 은 2027-01-16 ~ 02-07(23일). 문서의 일·시간은 모두 현실 시간이다.
 
 같은 서버의 좀비 모드는 [zomApo](https://github.com/menonng/zomApo), 서버 전체 기획(결정 사항, 모드 목록, 시뮬레이션, 일정)은 zomApo 의 [docs/server](https://github.com/menonng/zomApo/blob/HEAD/docs/server/README.md) 에 있다.
+
+## 빌드
+
+JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼가 받는다.
+
+```
+./gradlew buildAll          # 순수 모듈 테스트 + 모드 jar (mod/build/libs/)
+./gradlew :diary:test       # 생존일지 테스트, 샘플은 diary/build/diary-samples.md
+./gradlew :mod:runServer    # 26.3 전용 서버를 띄워 모드가 켜지는지 확인(스모크 테스트)
+```
+
+| 모듈 | 내용 |
+|---|---|
+| `snw-api` | 다른 모드가 참조하는 인터페이스. 마인크래프트 타입을 쓰지 않는다 |
+| `logic` | 순수 Kotlin 규칙: 닉네임 개인정보 검사, K/D/A 판정, 영토 상한·점령·해제, 영토 다각형 병합, 한국어 조사 |
+| `diary` | 생존일지 생성기(규칙 기반, 외부 AI 없음). 디스코드 봇이 쓴다 |
+| `mod` | Fabric 서버 모드. `snw-api`·`logic` 을 jar 안에 포함한다 |
 
 ## 구성 요소와 브랜치
 
@@ -43,4 +60,5 @@
 | [docs/discord/mod.md](docs/discord/mod.md) | 디스코드 연동 모드 |
 | [docs/discord/protocol.md](docs/discord/protocol.md) | 모드 ↔ 봇 통신 규약 |
 | [docs/discord/peer-rating.md](docs/discord/peer-rating.md) | 상호평가(⭐ 5점)와 균형 팀 편성 |
+| [docs/discord/diary.md](docs/discord/diary.md) | 생존일지: 입력(개인정보 제외), 생성 과정, 목소리, AI 말투 규칙 |
 | [docs/tech/architecture.md](docs/tech/architecture.md) | 기술 구조, `snw-api`, 저장 |

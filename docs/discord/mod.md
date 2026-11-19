@@ -40,7 +40,7 @@ Fabric 서버 모드, Kotlin, `environment: "server"`. 브랜치 `discord-mod` �
 
 ## 4. 대기열
 
-봇과 연결이 끊긴 동안 생긴 이벤트 중 **잃으면 안 되는 것**(킬, 공동 연구 단계, 거점 점령)만 `config/snw-discord/outbox.jsonl` 에 쌓았다가 재연결 후 보낸다. 나머지(접속 알림 등)는 버린다. 메시지마다 고유 id 가 있어 봇이 중복을 걸러 낸다.
+봇과 연결이 끊긴 동안 생긴 이벤트 중 **잃으면 안 되는 것**(킬, 백신 조각, 거점 점령)만 `config/snw-discord/outbox.jsonl` 에 쌓았다가 재연결 후 보낸다. 나머지(접속 알림 등)는 버린다. 메시지마다 고유 id 가 있어 봇이 중복을 걸러 낸다.
 
 ## 5. 설정
 
@@ -54,7 +54,7 @@ Fabric 서버 모드, Kotlin, `environment: "server"`. 브랜치 `discord-mod` �
   "gateBypass": [],
   "relayChat": false,
   "inGameRating": true,
-  "outboxTypes": ["player.death", "cure.stage", "landmark.captured"]
+  "outboxTypes": ["player.death", "vaccine.shard", "landmark.captured"]
 }
 ```
 

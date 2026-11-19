@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "snw",
+  "version": "${version}",
+  "name": "simpleNationWar",
+  "description": "좀비 아포칼립스 서버의 국가 모드: 3국 고정, 영토, 관계, 거점전, K/D/A, 커스텀 닉네임 표시. 서버 사이드 전용.",
+  "authors": ["menonng"],
+  "contact": { "sources": "https://github.com/menonng/simpleNationWar" },
+  "license": "All-Rights-Reserved",
+  "environment": "server",
+  "entrypoints": {
+    "main": [{ "adapter": "kotlin", "value": "dev.menonng.snw.Snw" }]
+  },
+  "mixins": ["snw.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=25",
+    "fabric-api": "*",
+    "fabric-language-kotlin": ">=${flk_version}"
+  }
+}
