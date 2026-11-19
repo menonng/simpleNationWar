@@ -32,6 +32,7 @@ simpleNationWar/            (기본 브랜치)
 │     ├─ gui/               상자 메뉴 DSL, /n 화면들, 다이얼로그
 │     ├─ command/           /n, /info, /snw (Brigadier Kotlin DSL)
 │     └─ data/              SavedData 코덱
+├─ logic/                   마인크래프트를 모르는 순수 Kotlin: K/D/A 판정(어시스트 창·최소 기여·반복 킬), 영토 상한, 점령 조건, 다각형 병합, 관계 전이·휴전 규칙. JUnit 테스트
 ├─ protocol/                모드 ↔ 봇 메시지 모델 원본 (discord-mod, discord-bot 브랜치가 가져감)
 └─ docs/
 ```
@@ -100,12 +101,16 @@ Fabric API 이벤트로 되는 것은 믹스인보다 이벤트를 먼저 쓴다
 
 ## 6. UI 구현
 
-- 상자 메뉴 GUI: 서버 사이드 `ChestMenu` 위에 작은 Kotlin DSL(monun 의 invfx 처럼 Frame·Button·Pane·List 개념). 클릭은 서버에서 처리하고 아이템 이동은 막는다.
-- 입력 폼: 바닐라 다이얼로그(26.x).
-- 명령: Brigadier 위 작은 Kotlin DSL(monun 의 kommand 처럼 `then`/`executes`). 일반 명령은 `/n`, `/info` 두 개뿐이다.
+monun 저장소에서 가져오는 구조다. 전체 분석은 zomApo 의 [reference/monun.md](https://github.com/menonng/zomApo/blob/HEAD/docs/reference/monun.md).
+
+- **상자 메뉴 GUI**: 서버 사이드 `ChestMenu` 위에 invfx 와 같은 모양의 작은 Kotlin DSL. `frame(줄, 제목) { slot(x, y) {…}; pane(영역) { onClick { x, y -> … } }; list(영역, { 데이터 }) { transform {…}; onClickItem {…} } }`. 국민 탭 = `list` + 페이지, 영토 탭 = `pane` 좌표 클릭 → 청크 오프셋, 탭 버튼 = `slot`. 클릭은 서버에서 처리하고 아이템 이동은 막는다. 잠긴 탭·칸은 방벽 아이템 + 해금 조건 설명(inv-captive 의 잠긴 칸 표시).
+- **입력 폼**: 바닐라 다이얼로그(26.x)를 speculation 의 `GameDialog<R>` 처럼 감싼다. `suspend fun <R> ask(player, dialog: SnwDialog<R>, timeout, default): R`. 관계 선언 확인, 직위 변경, 국고 대량 인출 확인, 인게임 상호평가가 같은 틀을 쓴다. 시간 초과·창 닫기는 `default`.
+- **명령**: Brigadier 위 kommand 와 같은 모양의 작은 DSL(`then` / `executes` / `requires`). `/info` 의 대상 인수는 kommand 의 `dynamic` 인수처럼 직접 해석하고 자동완성에 **마크 이름과 커스텀 닉네임을 모두** 띄운다. 운영자 명령은 `requires` 로 숨긴다.
+- **문구**: 모든 안내 문구는 설정 파일 템플릿(`$닉네임`, `${국가}` 치환, tap `TemplateSupport` 와 같은 생각).
 
 ## 7. 테스트
 
+- `logic` 단위 테스트: K/D/A 판정 경계(14.9초/15.1초, 최소 기여, 10분 안 3번째 킬), 영토 상한 식, 다각형 병합(구멍·떨어진 조각), 관계 전이(악화 즉시·개선 동의·휴전 72시간).
 - 서버 게임테스트: 점령 조건, 상한 계산, 보호 행렬, 자동 복구, K/D/A 판정(어시스트 15초·최소 기여·같은 상대 반복), 다각형 병합(구멍 포함).
 - 헤드리스 서버 기동 CI: simpleNationWar 단독, + zomApo, + snw-discord(봇 없이) 세 조합.
 - 봇: 프로토콜 왕복 테스트(가짜 모드 클라이언트), 편성 알고리즘 단위 테스트.
