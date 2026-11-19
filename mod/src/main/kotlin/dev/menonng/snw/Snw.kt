@@ -1,5 +1,6 @@
 package dev.menonng.snw
 
+import dev.menonng.snw.chat.ChatRouting
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import org.slf4j.LoggerFactory
@@ -10,9 +11,13 @@ object Snw : ModInitializer {
 
     override fun onInitialize() {
         log.info("simpleNationWar 초기화")
+        SnwConfig.load()
+        ChatRouting.register()
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
             if (System.getProperty("snw.smoke") == "true") {
-                log.info("[simpleNationWar] smoke test passed")
+                val failures = Smoke.run(server)
+                if (failures.isEmpty()) log.info("[simpleNationWar] smoke test passed")
+                else log.error("[simpleNationWar] smoke test failed: {}", failures)
                 server.halt(false)
             }
         }

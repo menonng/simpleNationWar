@@ -82,6 +82,7 @@ interface ProjectConditionProvider {                           // 엔트리포�
 | 불 번짐, 엔더맨 블록 이동 | 해당 블록·목표 클래스 |
 | 주민 번식 차단 | 주민 번식 가능 판정 |
 | 채팅·사망 메시지 표시 이름 | 플레이어 표시 이름 |
+| 기본 채팅 → 국가 채팅 | **구현됨.** `TeamMsgCommand.sendMessage` 호출용 Invoker(`mixin/TeamMsgCommandInvoker`) + `ALLOW_CHAT_MESSAGE` 의 앞선 단계(`snw:chat_routing`) |
 | 탭 목록 이름 | 플레이어 정보 갱신 패킷의 표시 이름 |
 | 로케이터 바 필터 | 웨이포인트 추적·전송 관리 |
 | 로그인 거부(snw-discord) | 로그인 단계 이벤트 (Fabric 네트워킹 이벤트 우선) |
