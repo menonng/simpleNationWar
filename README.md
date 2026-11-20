@@ -61,7 +61,7 @@ JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼�
 |---|---|
 | [nickname.md](docs/design/nickname.md) | 커스텀 닉네임 규칙과 개인정보 검사 |
 | [peer-rating.md](docs/discord/peer-rating.md) | 상호평가(⭐ 5점)와 국가 추첨식 |
-| [diary.md](docs/discord/diary.md) | 생존일지: 입력(개인정보 제외), 생성 과정, 목소리, AI 말투 규칙 |
+| [diary.md](docs/discord/diary.md) | 오늘의 서버 기록(생존일지): 형식, 175% 클로드 문체, 입력(개인정보 제외), 생성 과정 |
 | [protocol.md](docs/discord/protocol.md) | 모드 ↔ 봇 통신 규약 |
 | [architecture.md](docs/tech/architecture.md) | 기술 구조, `snw-api`, 저장 |
 | [towns-and-nations.md](docs/reference/towns-and-nations.md) | Towns and Nations 분석과 채택·변경·제외 대응표 |

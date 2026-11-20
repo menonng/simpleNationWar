@@ -92,6 +92,11 @@ enum class Voice {
     SURVIVOR,
     /** 차분한 관찰자. 해요체, 정확하고 다정하며 가끔 건조한 농담. '클로드 느낌'. */
     OBSERVER,
+    /**
+     * '오늘의 서버 기록'(기본). 클로드 문체 175%: 결론부터, 조심스러운 판단, 짚고 넘어가기·덧붙이기, 다정한 맺음.
+     * 한 줄 요약 · 오늘 있었던 일 · 숫자로 보면 · 덧붙이자면 네 칸으로 쓴다. 틀은 [ClaudeLexicon].
+     */
+    CLAUDE,
 }
 
 data class Diary(val title: String, val paragraphs: List<String>) {

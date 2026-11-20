@@ -10,14 +10,18 @@ package dev.menonng.snw.diary
  *  - `(?이름:글)`        값이 있을 때만 '글'을 넣는다. 글 안에도 자리표시를 쓸 수 있다
  */
 class Phrase(val id: String, val survivor: List<String>, val observer: List<String>) {
-    fun forVoice(v: Voice) = if (v == Voice.SURVIVOR) survivor else observer
+    fun forVoice(v: Voice) = when (v) {
+        Voice.SURVIVOR -> survivor
+        Voice.OBSERVER -> observer
+        Voice.CLAUDE -> ClaudeLexicon.forId(id) ?: observer
+    }
 }
 
 object Lexicon {
     private val all = mutableMapOf<String, Phrase>()
     private fun p(id: String, survivor: List<String>, observer: List<String>) = Phrase(id, survivor, observer).also { all[id] = it }
 
-    operator fun get(id: String): Phrase = all[id] ?: error("문장 틀 없음: $id")
+    operator fun get(id: String): Phrase = all[id] ?: ClaudeLexicon.forId(id)?.let { Phrase(id, it, it) } ?: error("문장 틀 없음: $id")
 
     val opener_rise = p("opener.rise",
         listOf("감염도가 {a}에서 {b:으로/로} 올랐다.", "감염도는 {b}. 하루 사이 {d}만큼 짙어졌다.", "감염도가 또 올랐다. {a}에서 {b:으로/로}."),

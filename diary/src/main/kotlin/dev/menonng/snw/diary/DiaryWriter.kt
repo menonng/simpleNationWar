@@ -41,6 +41,7 @@ class DiaryWriter(
     // ---------------------------------------------------------------- 문단 계획
 
     private fun compose(input: DayInput, memory: DiaryMemory, items: List<Item>, rnd: Random): Draft {
+        if (voice == Voice.CLAUDE) return composeRecord(input, memory, items, rnd)
         val ctx = Ctx(memory, input.dayNumber, rnd)
         val paragraphs = mutableListOf<List<String>>()
 
@@ -87,6 +88,89 @@ class DiaryWriter(
         val report = StyleLinter.check(dense.flatten(), voice)
         val lengthPenalty = if (diary.text().length > maxLength) 20 else 0
         return Draft(diary, ctx.used, report.penalty + lengthPenalty, report.problems)
+    }
+
+    /**
+     * '오늘의 서버 기록': 한 줄 요약 · 오늘 있었던 일 · 숫자로 보면 · 덧붙이자면.
+     * 사건 고르기·이름 가리기·반복 피하기는 생존일지와 같고, 문장 틀과 배치만 다르다.
+     */
+    private fun composeRecord(input: DayInput, memory: DiaryMemory, items: List<Item>, rnd: Random): Draft {
+        val ctx = Ctx(memory, input.dayNumber, rnd)
+        val s = input.summary
+        val ev = input.events
+        val bloodMoon = items.firstOrNull { it.events.first() is DiaryEvent.BloodMoon }?.events?.first() as DiaryEvent.BloodMoon?
+        val summaryId = when {
+            items.isEmpty() -> "summary.quiet"
+            bloodMoon != null -> if (bloodMoon.defended) "summary.bloodmoon.won" else "summary.bloodmoon.lost"
+            ev.any { it is DiaryEvent.AlphaKilled } -> "summary.alpha"
+            ev.any { it is DiaryEvent.PvpKill } -> "summary.pvp"
+            ev.count { it is DiaryEvent.ZombieDeath } >= 3 -> "summary.deaths"
+            else -> "summary.default"
+        }
+        val summary = listOf(ctx.say(summaryId, emptyMap(), emptyList()))
+
+        val story = mutableListOf<List<String>>()
+        val first = mutableListOf(opener(s, ctx))
+        if (s.fullMoons > 0 && bloodMoon == null) first += ctx.say("fullmoon", mapOf("n" to s.fullMoons.toString()), first)
+        story.add(first)
+        if (items.isEmpty()) {
+            story.add(listOf(ctx.say("quiet", emptyMap(), emptyList())))
+        } else {
+            val big = items.filter { it.events.first() is DiaryEvent.BloodMoon }
+            val normal = items - big.toSet()
+            val early = normal.filter { it.part.ordinal <= DayPart.DAY.ordinal }
+            val late = normal.filter { it.part.ordinal > DayPart.DAY.ordinal }
+            for (group in listOf(early, late)) {
+                if (group.isEmpty()) continue
+                val lines = mutableListOf<String>()
+                for (item in group.sortedWith(compareBy<Item> { it.part.ordinal }.thenByDescending { it.score })) lines += sentence(item, ctx, lines)
+                story.add(lines)
+            }
+            for (item in big) story.add(listOf(sentence(item, ctx, emptyList())))
+        }
+
+        val d = s.serverInfectionAfter - s.serverInfectionBefore
+        val sign = when {
+            kotlin.math.abs(d) < 0.05 -> "±"
+            d > 0 -> "+"
+            else -> "−"
+        }
+        val zombieDeaths = ev.count { it is DiaryEvent.ZombieDeath }
+        val accidents = ev.count { it is DiaryEvent.AccidentDeath }
+        val numbers = buildList {
+            add("- 서버 감염도: ${fmt(s.serverInfectionBefore)} → ${fmt(s.serverInfectionAfter)} ($sign${fmt(kotlin.math.abs(d))})")
+            if (zombieDeaths + accidents > 0) add("- 쓰러진 횟수: ${zombieDeaths + accidents}번 (좀비 $zombieDeaths · 사고 $accidents)")
+            ev.count { it is DiaryEvent.PvpKill }.takeIf { it > 0 }?.let { add("- PvP: ${it}번") }
+            if (s.fullMoons > 0) add("- 보름달 밤: ${s.fullMoons}번")
+            topNation(s)?.let { add("- 좀비 스코어 1위 국가: $it") }
+            s.vaccineShardsTotal?.takeIf { it > 0 }?.let { add("- 백신 조각(서버 전체): ${it}개") }
+            add("- 기록에 오른 사건: ${items.size}건")
+        }
+
+        val tail = mutableListOf<String>()
+        val since = memory.daysSinceBloodMoon(input.dayNumber)
+        if (bloodMoon == null && (since == null && input.dayNumber >= 4 || (since ?: 0) >= 3)) tail += ctx.say("closer.nobloodmoon", emptyMap(), tail)
+        val shardToday = items.any { it.events.first() is DiaryEvent.VaccineShard }
+        s.vaccineShardsTotal?.takeIf { it > 0 && shardToday }?.let { tail += ctx.say("closer.shards", mapOf("n" to it.toString()), tail) }
+        tail += ctx.say("closer.next", mapOf("b" to fmt(s.serverInfectionAfter)), tail)
+        if (tail.size < 3) tail += ctx.say("signoff", emptyMap(), tail)
+
+        val title = "오늘의 서버 기록 · ${input.dayNumber}일째 (${input.date.monthValue}월 ${input.date.dayOfMonth}일)"
+        val paragraphs = listOf(
+            "**한 줄 요약**\n" + summary.joinToString(" "),
+            "**오늘 있었던 일**\n" + story.filter { it.isNotEmpty() }.joinToString("\n\n") { it.joinToString(" ") },
+            "**숫자로 보면**\n" + numbers.joinToString("\n"),
+            "**덧붙이자면**\n" + tail.joinToString(" "),
+        )
+        val diary = Diary(title, paragraphs)
+        val narrative = summary + story.flatten() + tail
+        val report = StyleLinter.check(narrative, voice)
+        val text = diary.text()
+        val markers = ClaudeLexicon.MARKERS.count { text.contains(it) }
+        val markerPenalty = if (markers < ClaudeLexicon.MIN_MARKERS) 6 * (ClaudeLexicon.MIN_MARKERS - markers) else 0
+        val problems = report.problems + (if (markerPenalty > 0) listOf("클로드 문체 표지 부족: $markers") else emptyList())
+        val lengthPenalty = if (text.length > maxLength + 500) 20 else 0
+        return Draft(diary, ctx.used, report.penalty + markerPenalty + lengthPenalty, problems)
     }
 
     private fun opener(s: DaySummary, ctx: Ctx): String {

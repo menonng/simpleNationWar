@@ -65,11 +65,11 @@ class DiaryWriterTest {
     fun case02() {
         for (voice in Voice.entries) for (out in run(voice)) {
             val text = out.diary.text()
-            for (b in StyleLinter.banned) assertFalse(text.contains(b), "$voice 에 상투어 '$b'\n$text")
+            for (b in StyleLinter.bannedFor(voice)) assertFalse(text.contains(b), "$voice 에 상투어 '$b'\n$text")
             val sentences = out.diary.paragraphs.flatMap { StyleLinter.splitSentences(it) }
             if (voice == Voice.SURVIVOR) assertTrue(sentences.none { it.endsWith("요.") }, text)
-            if (voice == Voice.OBSERVER) assertTrue(sentences.none { it.endsWith("다.") }, text)
-            assertTrue(text.length <= 1500)
+            if (voice != Voice.SURVIVOR) assertTrue(sentences.none { it.endsWith("다.") }, text)
+            assertTrue(text.length <= if (voice == Voice.CLAUDE) 2000 else 1500, "$voice 길이 ${text.length}")
             assertTrue(out.problems.isEmpty(), "$voice 문제: ${out.problems}\n$text")
         }
     }
@@ -95,11 +95,24 @@ class DiaryWriterTest {
     }
 
     @Test
+    @DisplayName("오늘의 서버 기록: 네 칸, 클로드 문체 표지 4종 이상, 좌표·시각 없음")
+    fun case06() {
+        for (out in run(Voice.CLAUDE)) {
+            val text = out.diary.text()
+            assertTrue(text.startsWith("오늘의 서버 기록"), text)
+            for (h in listOf("**한 줄 요약**", "**오늘 있었던 일**", "**숫자로 보면**", "**덧붙이자면**")) assertTrue(text.contains(h), text)
+            assertTrue(ClaudeLexicon.MARKERS.count { text.contains(it) } >= ClaudeLexicon.MIN_MARKERS, text)
+            assertFalse(Regex("""-?\d{2,5}, -?\d{1,3}, -?\d{2,5}""").containsMatchIn(text), text)   // 좌표
+            assertFalse(Regex("""\d{1,2}:\d{2}""").containsMatchIn(text), text)                      // 시각
+        }
+    }
+
+    @Test
     @DisplayName("일지 샘플을 파일로 남긴다(사람이 읽고 판단하는 용도)")
     fun case05() {
         val sb = StringBuilder("# 생존일지 샘플 (테스트 입력)\n\n")
         for (voice in Voice.entries) {
-            sb.append("## ").append(if (voice == Voice.SURVIVOR) "생존자 목소리" else "관찰자 목소리").append("\n\n")
+            sb.append("## ").append(when (voice) { Voice.SURVIVOR -> "생존자 목소리"; Voice.OBSERVER -> "관찰자 목소리"; Voice.CLAUDE -> "오늘의 서버 기록 (기본)" }).append("\n\n")
             for (out in run(voice)) sb.append("```\n").append(out.diary.text()).append("\n```\n\n")
         }
         File("build/diary-samples.md").apply { parentFile.mkdirs() }.writeText(sb.toString())
