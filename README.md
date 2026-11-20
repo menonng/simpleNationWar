@@ -52,7 +52,7 @@ JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼�
 
 | 문서 | 목차 |
 |---|---|
-| [국가 모드](docs/design/nation.md) | 국가(3국·직위·영토·보호·관계·거점전·국고·스폰) · 명령어(채팅 포함) · 화면 · 지도 연동 · KDA |
+| [국가 모드](docs/design/nation.md) | 국가(3국·직위·영토·보호·관계·거점전·국고·스폰·늦은 합류·잠수·전투 중 로그아웃) · 명령어(채팅 포함) · 화면 · 지도 연동 · KDA |
 | [디스코드 연동](docs/discord/README.md) | 구조 · 디스코드 봇(가입·명령·알림·DB) · 연동 모드 |
 
 ### 상세 문서
@@ -60,6 +60,7 @@ JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼�
 | 문서 | 내용 |
 |---|---|
 | [nickname.md](docs/design/nickname.md) | 커스텀 닉네임 규칙과 개인정보 검사 |
+| [handheld-map.md](docs/design/handheld-map.md) | 휴대 지도(보조손 지도) 검토안, 예시 만드는 도구 `tools/mapmock` |
 | [peer-rating.md](docs/discord/peer-rating.md) | 상호평가(⭐ 5점)와 국가 추첨식 |
 | [diary.md](docs/discord/diary.md) | 오늘의 서버 기록(생존일지): 형식, 175% 클로드 문체, 입력(개인정보 제외), 생성 과정 |
 | [protocol.md](docs/discord/protocol.md) | 모드 ↔ 봇 통신 규약 |
