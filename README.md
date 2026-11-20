@@ -32,7 +32,7 @@ JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼�
 | **simpleNationWar** (`snw`) | 기본 브랜치 | 국가·직위·영토·보호·관계·거점전·국고, K/D/A, 커스텀 닉네임 표시, `/n`·`/info`·`/g`, 채팅 경로(기본 국가 채팅), BlueMap·squaremap 연동, 다른 모드용 공개 API(`snw-api`) |
 | **snw-discord** | `discord-mod` (코드 단계에서 생성) | 디스코드 봇과 WebSocket 으로 통신하는 서버 모드. 접속 확인(연동 안 된 계정 차단), 닉네임 동기화, 이벤트 송신, 상호평가 인게임 입력 |
 | **디스코드 봇** | `discord-bot` (코드 단계에서 생성) | 독립 실행 Kotlin 프로세스. 가입·닉네임 등록, 마크 계정 연동, 상호평가(관리자 명령), 국가 추첨식, 국가별 채널 생성, 알림 |
-| **서버 관리 창** (`panel`) | `server-panel` | Fabric 서버 켜기·끄기, 색 있는 콘솔·자동완성, 접속자·TPS·MSPT, 정기 재시작·크래시 복구, 백업, 시즌 버튼. Swing 데스크톱 앱 ([docs/panel.md](docs/panel.md)) |
+| **서버 관리 프로그램** (`panel`) | `server-panel` | Paper 콘솔 같은 CLI(색 로그·명령 기록·Tab 자동완성·상태 줄) + 편의 명령(재시작·백업·예약 재시작·크래시 복구·시즌·로그 검색). `--gui` 로 창 버전도 ([docs/panel.md](docs/panel.md)) |
 
 문서는 모두 기본 브랜치의 `docs/` 에 둔다. 코드가 생기면 각 브랜치에 해당 구현이 들어간다.
 
@@ -61,7 +61,7 @@ JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼�
 |---|---|
 | [nickname.md](docs/design/nickname.md) | 커스텀 닉네임 규칙과 개인정보 검사 |
 | [peer-rating.md](docs/discord/peer-rating.md) | 상호평가(⭐ 5점)와 국가 추첨식 |
-| [diary.md](docs/discord/diary.md) | 생존일지: 입력(개인정보 제외), 생성 과정, 목소리, AI 말투 규칙 |
+| [diary.md](docs/discord/diary.md) | 오늘의 서버 기록(생존일지): 형식, 175% 클로드 문체, 입력(개인정보 제외), 생성 과정 |
 | [protocol.md](docs/discord/protocol.md) | 모드 ↔ 봇 통신 규약 |
 | [architecture.md](docs/tech/architecture.md) | 기술 구조, `snw-api`, 저장 |
 | [towns-and-nations.md](docs/reference/towns-and-nations.md) | Towns and Nations 분석과 채택·변경·제외 대응표 |

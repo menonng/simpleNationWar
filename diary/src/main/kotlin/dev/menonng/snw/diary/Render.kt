@@ -37,22 +37,30 @@ object StyleLinter {
         "!!", "—", "~", "…", "ㅋㅋ", "ㅎㅎ", "🙂", "😊", "✨", "🔥",
     )
 
+    /** '오늘의 서버 기록'(클로드 문체)에서도 막는 것: 과장·홍보 말투, 이모지, 인터넷 말투. 줄표·'물론'·'정리해 보면'은 오히려 문체의 일부다. */
+    val bannedClaude = listOf(
+        "놀랍게도", "여정", "눈부신", "그야말로", "잊지 못할", "새로운 장", "한 편의", "드라마", "서사", "역사적인", "획기적",
+        "!!", "~", "…", "ㅋㅋ", "ㅎㅎ", "🙂", "😊", "✨", "🔥",
+    )
+
+    fun bannedFor(voice: Voice): List<String> = if (voice == Voice.CLAUDE) bannedClaude else banned
+
     data class Report(val penalty: Int, val problems: List<String>)
 
     fun check(sentences: List<String>, voice: Voice): Report {
         val problems = mutableListOf<String>()
         var penalty = 0
         val text = sentences.joinToString(" ")
-        for (b in banned) if (text.contains(b)) { problems += "상투어: $b"; penalty += 10 }
+        for (b in bannedFor(voice)) if (text.contains(b)) { problems += "상투어: $b"; penalty += 10 }
         val bangs = text.count { it == '!' }
         if (voice == Voice.SURVIVOR && bangs > 0) { problems += "느낌표"; penalty += 5 * bangs }
-        if (voice == Voice.OBSERVER && bangs > 1) { problems += "느낌표 과다"; penalty += 5 * (bangs - 1) }
+        if (voice != Voice.SURVIVOR && bangs > 1) { problems += "느낌표 과다"; penalty += 5 * (bangs - 1) }
 
         for (s in sentences.flatMap { splitSentences(it) }) {
             val polite = s.endsWith("요.") || s.endsWith("요?")
             if (voice == Voice.SURVIVOR && polite) { problems += "해요체 섞임: $s"; penalty += 8 }
-            if (voice == Voice.OBSERVER && !polite && !s.endsWith(".")) { penalty += 1 }
-            if (voice == Voice.OBSERVER && s.endsWith("다.")) { problems += "평서체 섞임: $s"; penalty += 8 }
+            if (voice != Voice.SURVIVOR && !polite && !s.endsWith(".")) { penalty += 1 }
+            if (voice != Voice.SURVIVOR && s.endsWith("다.")) { problems += "평서체 섞임: $s"; penalty += 8 }
             if (s.count { it == ',' } >= 3) { problems += "쉼표 나열: $s"; penalty += 3 }
         }
         val flat = sentences.flatMap { splitSentences(it) }
