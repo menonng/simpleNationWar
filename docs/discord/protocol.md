@@ -39,7 +39,7 @@
 | `zomapo.bloodmoon` | | `phase`(start/end), `result?{areas[], participants[]}` |
 | `zomapo.nest` | | `event`(found/destroyed), `nest`, `participants[]` |
 | `zomapo.daily` | | `globalRamp`, `nations{id: level}`, `serverInfection` |
-| `starforce.success` | | `uuid`, `item`, `star` (8성 이상만) |
+| `starforce.success` | | `uuid`, `item`, `star` (10성 달성만) |
 | `zomapo.bloodmoon.notice` | | `startsAt`, `target`(수도 id 또는 camp), `online` — 블러드문 10분 전 예고 |
 | `stats.snapshot` | | `players[{uuid, k, d, a, dPvp, zombieKills, zombieScore, playtime}]` |
 | `rating.submit` | ✔ | `round`, `rater`, `target`, `scores{category: 1~5 \| null}` |
