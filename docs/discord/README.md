@@ -49,4 +49,4 @@ flowchart LR
 - [bot.md](bot.md): 봇 기능, 채널·역할 구조, 가입 흐름, 기술 스택
 - [mod.md](mod.md): 연동 모드
 - [protocol.md](protocol.md): 통신 규약
-- [peer-rating.md](peer-rating.md): 상호평가와 균형 팀 편성
+- [peer-rating.md](peer-rating.md): 상호평가와 국가 추첨식(팀 편성)

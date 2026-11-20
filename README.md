@@ -31,7 +31,7 @@ JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼�
 |---|---|---|
 | **simpleNationWar** (`snw`) | 기본 브랜치 | 국가·직위·영토·보호·관계·거점전·국고, K/D/A, 커스텀 닉네임 표시, `/n`·`/info`·`/g`, 채팅 경로(기본 국가 채팅), BlueMap·squaremap 연동, 다른 모드용 공개 API(`snw-api`) |
 | **snw-discord** | `discord-mod` (코드 단계에서 생성) | 디스코드 봇과 WebSocket 으로 통신하는 서버 모드. 접속 확인(연동 안 된 계정 차단), 닉네임 동기화, 이벤트 송신, 상호평가 인게임 입력 |
-| **디스코드 봇** | `discord-bot` (코드 단계에서 생성) | 독립 실행 Kotlin 프로세스. 가입·닉네임 등록, 마크 계정 연동, 상호평가(관리자 명령), 팀 편성, 국가별 채널 생성, 알림 |
+| **디스코드 봇** | `discord-bot` (코드 단계에서 생성) | 독립 실행 Kotlin 프로세스. 가입·닉네임 등록, 마크 계정 연동, 상호평가(관리자 명령), 국가 추첨식, 국가별 채널 생성, 알림 |
 
 문서는 모두 기본 브랜치의 `docs/` 에 둔다. 코드가 생기면 각 브랜치에 해당 구현이 들어간다.
 
@@ -60,6 +60,6 @@ JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼�
 | [docs/discord/bot.md](docs/discord/bot.md) | 디스코드 봇 |
 | [docs/discord/mod.md](docs/discord/mod.md) | 디스코드 연동 모드 |
 | [docs/discord/protocol.md](docs/discord/protocol.md) | 모드 ↔ 봇 통신 규약 |
-| [docs/discord/peer-rating.md](docs/discord/peer-rating.md) | 상호평가(⭐ 5점)와 균형 팀 편성 |
+| [docs/discord/peer-rating.md](docs/discord/peer-rating.md) | 상호평가(⭐ 5점)와 국가 추첨식(팀 편성) |
 | [docs/discord/diary.md](docs/discord/diary.md) | 생존일지: 입력(개인정보 제외), 생성 과정, 목소리, AI 말투 규칙 |
 | [docs/tech/architecture.md](docs/tech/architecture.md) | 기술 구조, `snw-api`, 저장 |

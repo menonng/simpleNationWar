@@ -61,7 +61,7 @@
 6. #등록 의 **[연동 코드 입력]** → 모달에 코드 입력 → 봇이 UUID 일치 확인.
 7. 완료: `생존자` 역할, 디스코드 별명 `닉네임`(마크 이름은 디스코드에 드러내지 않는다), 모드로 `link.confirmed` 전송. 다시 접속하면 입장.
 
-접속 가능 시간대와 예상 플레이 시간은 팀 편성(같은 국가끼리 시간대가 겹치게)과 이벤트 시간 결정에 쓴다.
+접속 가능 시간대와 예상 플레이 시간은 국가 추첨식의 참여도와 이벤트 시간 결정에 쓴다. 가입이 끝나면 #등록 의 **[단짝 지목]** 버튼(유저 선택 메뉴)으로 같이 하고 싶은 한 명을 고를 수 있다. 서로 지목했을 때만 같은 국가로 묶이고, 누가 누구를 골랐는지는 공개하지 않는다.
 
 ## 4. 명령
 
@@ -73,8 +73,11 @@
 | `/평가 현황` | 관리자 | 누가 몇 명 평가했는지 (점수는 안 보임) |
 | `/평가 종료` | 관리자 | 마감, 집계 |
 | `/평가 결과 [공개]` | 관리자 | 본인에게 DM 발송, `공개` 옵션이면 #공지에 요약 |
-| `/팀 편성` | 관리자 | 균형 편성안 상위 3개 임베드 + 투표 버튼 |
-| `/팀 확정 <안>` | 관리자 | 국가 역할 부여, 국가 카테고리·채널 생성, 모드로 `nation.assign` |
+| `/팀 팀장 <3명>` | 관리자 | 팀장(원수) 확정 |
+| `/팀 추첨` | 관리자 | 국가 추첨식: 시드 해시 공개 → 한 명씩 공개 → 시드 공개 ([peer-rating.md](peer-rating.md) 5절) |
+| `/팀 교환` | 모두 (교환 창 동안) | 다른 국가 한 명과 맞교환 신청. 양쪽이 신청하고 균형 기준을 지키면 성사 |
+| `/팀 확정` | 관리자 | 국가 역할 부여, 국가 카테고리·채널 생성, 모드로 `nation.assign` |
+| `/팀 최적화` | 관리자 (예비) | 최적화 편성 상위 3안 |
 | `/서버 상태` | 관리자 | 접속자, TPS, 봇 연결 |
 | `/서버 공지 <내용>` | 관리자 | 디스코드 #공지 + 인게임 방송 |
 
@@ -106,12 +109,12 @@
 
 | 테이블 | 주요 열 |
 |---|---|
-| `users` | discord_id, mc_uuid, mc_name, nickname, nickname_changed_at, availability(JSON), weekly_hours_band, registered_at, linked_at |
+| `users` | discord_id, mc_uuid, mc_name, nickname, nickname_changed_at, availability(JSON), weekly_hours_band, buddy_id, nation_leader_wish, registered_at, linked_at |
 | `link_codes` | code, mc_uuid, mc_name, expires_at |
 | `nicknames_pending` | discord_id, requested, requested_at, status |
 | `rating_rounds` | id, status, categories(JSON), started_at, deadline |
 | `ratings` | round_id, rater_id, target_id, category, stars(1~5 또는 NULL=모름), updated_at |
-| `team_plans` | id, round_id, plan(JSON), metrics(JSON), votes(JSON), confirmed |
+| `team_draws` | id, round_id, seed_hash, seed, leaders(JSON), result(JSON), metrics(JSON), tries, swaps(JSON), confirmed |
 | `nations` | id, name, color, role_id, category_id, channel_ids(JSON), leader_id |
 | `activity_hourly` | date, hour, online_count — 시간대별 접속자 수 집계만. 개인별 접속·퇴장 시각은 저장하지 않는다 |
 | `diary_memory` | day_number, memory(JSON) — 생존일지 기억(내부 키·문장 틀 사용일만, 닉네임 없음) |
