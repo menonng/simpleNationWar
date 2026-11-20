@@ -35,6 +35,8 @@ class Supervisor(
         private set
     @Volatile var autoRestart = config.autoRestart
     @Volatile var dailyRestart: LocalTime? = config.dailyRestart
+    /** 켜져 있을 때 .whitelist on/off 한 값. 서버는 꺼질 때 server.properties 를 자기 값으로 다시 쓰므로, 꺼진 뒤 다시 맞춘다. */
+    @Volatile var pendingWhitelist: Boolean? = null
     val recent = java.util.ArrayDeque<String>()   // 최근 콘솔 줄(검색용)
 
     private var server: ServerProcess? = null
@@ -102,6 +104,7 @@ class Supervisor(
             "접속      ${players.size}명" + (if (players.isNotEmpty()) "  " + synchronized(players) { players.joinToString(", ") } else ""),
             "TPS·MSPT  ${tps?.let { "%.1f".format(it) } ?: "-"} · ${mspt?.let { "%.1fms".format(it) } ?: "-"}",
             "자동 재시작 ${if (autoRestart) "켬" else "끔"} · 정기 재시작 ${dailyRestart ?: "끔"}",
+            "화이트리스트 ${when (Whitelist.enabled(config.serverDir)) { true -> "켬"; false -> "끔"; null -> "-" }} · ${Whitelist.read(config.serverDir).size}명",
             "서버 폴더 ${config.serverDir}",
         )
     }
@@ -162,6 +165,7 @@ class Supervisor(
         state = State.STOPPED
         players.clear()
         if (code == 0) info("서버가 꺼졌다") else error("서버가 꺼졌다 (종료 코드 $code)")
+        pendingWhitelist?.let { on -> runCatching { Whitelist.setEnabled(config.serverDir, on) }; pendingWhitelist = null }
         val cb = onStopped
         onStopped = null
         when {

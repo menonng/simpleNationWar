@@ -32,9 +32,15 @@
 | `.schedule 06:00` / `.schedule off` | 매일 정기 재시작(10·5·1분 전 게임 안 경고) |
 | `.autorestart on|off` | 비정상 종료 시 10초 뒤 자동 재시작 |
 | `.grep <글자>` | 최근 로그 5,000줄에서 찾기 |
+| `.whitelist` / `.whitelist list` | 화이트리스트 켬·끔과 명단 |
+| `.whitelist add <이름>` / `.whitelist remove <이름>` | 명단에 넣기 / 빼기. `remove` 뒤에서 Tab 을 누르면 명단의 이름이 나온다 |
+| `.whitelist on` / `.whitelist off` | 켜기(명단에 없는 사람은 접속 불가, 이미 들어온 사람도 내보냄) / 끄기 |
+| `.whitelist reload` | 파일을 손으로 고쳤을 때 다시 읽기(켜져 있을 때) |
 | `.season start` / `.season status` | 시즌 시작(확인 후) / 상태 |
 | `.config` / `.config dir <폴더>` | 설정 보기 / 서버 폴더 바꾸기 |
 | `.clear`, `.help`, `.exit` | 화면 지우기, 도움말, 서버를 끄고 나가기 |
+
+**화이트리스트**: 서버가 켜져 있으면 바닐라 `whitelist` 명령으로 처리하고(결과는 서버 로그에 나온다), 꺼져 있으면 `whitelist.json`·`server.properties` 를 직접 고친다. 꺼져 있을 때 이름을 넣으면 바닐라 서버와 같은 Mojang 계정 조회로 UUID 를 찾는다(인터넷 필요). 켜고 끌 때는 `white-list` 와 `enforce-whitelist` 를 함께 바꾼다. 켜져 있을 때 바꾼 값은 서버가 꺼질 때 설정 파일에 다시 맞춘다(서버가 꺼지면서 자기 값으로 파일을 다시 쓰기 때문). 디스코드 봇의 가입 확인과 연동하는 것은 봇 단계에서 한다.
 
 상태 줄(맨 아래): `● 실행 중  접속 2명  TPS 19.8  MSPT 12.3  가동 1:05  재시작 06:00`. TPS·MSPT 는 1분마다 spark 로 조용히 조회한다(출력은 숨김).
 
@@ -90,7 +96,7 @@ Paper 도 '관리 창'이 따로 있는 것은 아니다(바닐라 서버 GUI �
 | `panel/.../Cli.kt` | JLine 콘솔: 입력 줄 위로 로그 끼워 넣기, 상태 줄, 자동완성, 명령 기록, 관리 명령 |
 | `panel/.../Main.kt` | 시작점(기본 CLI, `--gui` 면 Swing + FlatLaf 창) |
 
-시험: 가상 터미널에서 CLI 를 띄워 실제 26.3 Fabric 서버를 시작 → Carpet 봇 2명 접속 → `list`·`.players`·`.status`·`.grep`·Tab 자동완성(`snw sea` → `snw season`)·상태 줄·`.exit`(서버 정상 종료)까지 확인했다(위 화면. 위쪽의 긴 오류는 시험 환경에서 봇 프로필 조회가 막혀서 난 것). 창 버전도 같은 서버로 확인했다.
+시험: 가상 터미널에서 CLI 를 띄워 실제 26.3 Fabric 서버를 시작 → 화이트리스트(꺼진 상태 편집·없는 계정·켜진 상태 추가/빼기/목록·Tab·꺼진 뒤 설정 파일) → → Carpet 봇 2명 접속 → `list`·`.players`·`.status`·`.grep`·Tab 자동완성(`snw sea` → `snw season`)·상태 줄·`.exit`(서버 정상 종료)까지 확인했다(위 화면. 위쪽의 긴 오류는 시험 환경에서 봇 프로필 조회가 막혀서 난 것). 창 버전도 같은 서버로 확인했다.
 
 ## 다음에 더할 것 (필요하면)
 

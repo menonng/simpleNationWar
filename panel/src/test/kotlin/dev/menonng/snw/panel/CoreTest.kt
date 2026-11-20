@@ -71,4 +71,27 @@ class CoreTest {
         assertEquals(LocalTime.of(6, 0), c.dailyRestart)
         assertTrue(c.command().containsAll(listOf("-Xmx8G", "-jar", "fabric-server-launch.jar", "nogui")))
     }
+
+    @Test
+    @DisplayName("화이트리스트: 파일 읽기·쓰기(바닐라 모양), 추가·중복·없는 계정·이름 형식·빼기, server.properties 켜고 끄기")
+    fun case06() {
+        val dir = Files.createTempDirectory("wl")
+        assertTrue(Whitelist.read(dir).isEmpty())
+        val fake = { n: String -> if (n.equals("Steve", true)) WhitelistEntry("8667ba71-b85a-4004-af54-457a9734eed7", "Steve") else null }
+        assertEquals(Whitelist.AddResult.ADDED, Whitelist.add(dir, "Steve", fake))
+        assertEquals(Whitelist.AddResult.ALREADY, Whitelist.add(dir, "steve", fake))
+        assertEquals(Whitelist.AddResult.NOT_FOUND, Whitelist.add(dir, "Nobody_123", fake))
+        assertEquals(Whitelist.AddResult.BAD_NAME, Whitelist.add(dir, "a b", fake))
+        val text = Files.readString(Whitelist.file(dir))
+        assertEquals("[\n  {\n    \"uuid\": \"8667ba71-b85a-4004-af54-457a9734eed7\",\n    \"name\": \"Steve\"\n  }\n]\n", text)
+        // 바닐라가 쓴 파일(한 줄, 순서 반대)도 읽는다
+        assertEquals(listOf(WhitelistEntry("853c80ef-3c37-49fd-aa49-938b674adae6", "jeb_")), Whitelist.parse("""[{"name":"jeb_","uuid":"853c80ef-3c37-49fd-aa49-938b674adae6"}]"""))
+        assertTrue(Whitelist.remove(dir, "STEVE"))
+        assertTrue(Whitelist.read(dir).isEmpty())
+        Files.writeString(dir.resolve("server.properties"), "motd=hi\nwhite-list=false\n")
+        Whitelist.setEnabled(dir, true)
+        assertEquals(true, Whitelist.enabled(dir))
+        assertEquals(listOf("motd=hi", "white-list=true", "enforce-whitelist=true"), Files.readAllLines(dir.resolve("server.properties")))
+        assertEquals("069a79f4-44e9-4726-a5be-fca90e38aaf5", Whitelist.dashed("069a79f444e94726a5befca90e38aaf5"))
+    }
 }

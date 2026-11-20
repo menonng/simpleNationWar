@@ -39,6 +39,7 @@ class Cli(private val sup: Supervisor, private val configFile: Path) {
         ".schedule" to "정기 재시작 시각 보기/바꾸기: .schedule 06:00 | .schedule off",
         ".autorestart" to "비정상 종료 시 자동 재시작: .autorestart on|off",
         ".grep" to "최근 로그 검색: .grep <글자>",
+        ".whitelist" to "화이트리스트: .whitelist [list] | add <이름> | remove <이름> | on | off | reload  (꺼져 있어도 됨)",
         ".season" to "시즌: .season start | .season status",
         ".config" to "설정 보기, 서버 폴더 바꾸기: .config dir <폴더>",
         ".clear" to "화면 지우기",
@@ -146,6 +147,7 @@ class Cli(private val sup: Supervisor, private val configFile: Path) {
                 hits.takeLast(30).forEach { print(it, LogParser.level(it), false) }
                 print("'$q' ${hits.size}줄 (최근 30줄만 표시)", LogLevel.INFO, true)
             }
+            ".whitelist" -> whitelist(arg, parts.getOrNull(2)?.trim())
             ".season" -> when (arg) {
                 "start" -> if (confirm("시즌을 시작할까요? 모두 국가 스폰 지점으로 이동합니다.")) sup.send("snw season start")
                 "status" -> sup.send("snw season status")
@@ -162,6 +164,50 @@ class Cli(private val sup: Supervisor, private val configFile: Path) {
             ".clear" -> { terminal.puts(org.jline.utils.InfoCmp.Capability.clear_screen); terminal.flush() }
             ".exit" -> exit()
             else -> print("모르는 관리 명령: ${parts[0]}  (.help)", LogLevel.WARN, true)
+        }
+    }
+
+    /**
+     * 켜져 있으면 바닐라 whitelist 명령(결과는 서버 로그로 나온다), 꺼져 있으면 파일을 직접 고친다.
+     * 꺼져 있을 때의 add 는 이름으로 UUID 를 찾아야 하므로(인터넷) 뒤에서 돌린다.
+     */
+    private fun whitelist(sub: String?, name: String?) {
+        val dir = sup.config.serverDir
+        val live = sup.state == Supervisor.State.RUNNING
+        when (sub ?: "list") {
+            "list" -> if (live) sup.send("whitelist list") else {
+                val list = Whitelist.read(dir)
+                print("화이트리스트 ${when (Whitelist.enabled(dir)) { true -> "켬"; false -> "끔"; null -> "(설정 없음)" }} · ${list.size}명" +
+                    (if (list.isNotEmpty()) ": " + list.joinToString(", ") { it.name } else ""), LogLevel.INFO, true)
+            }
+            "add" -> when {
+                name == null || !Whitelist.NAME.matches(name) -> print("사용: .whitelist add <마인크래프트 이름>  (영문·숫자·_ 3~16자)", LogLevel.WARN, true)
+                live -> sup.send("whitelist add $name")
+                else -> Thread({
+                    print("$name 의 계정을 찾는 중…", LogLevel.INFO, true)
+                    val r = Whitelist.add(dir, name) { MojangProfiles.lookup(it) }
+                    val (msg, lv) = when (r) {
+                        Whitelist.AddResult.ADDED -> "화이트리스트에 넣었다: $name (서버를 켜면 바로 적용)" to LogLevel.INFO
+                        Whitelist.AddResult.ALREADY -> "이미 화이트리스트에 있다: $name" to LogLevel.INFO
+                        Whitelist.AddResult.NOT_FOUND -> "그런 계정이 없거나 조회에 실패했다: $name" to LogLevel.WARN
+                        Whitelist.AddResult.BAD_NAME -> "이름 형식이 맞지 않다: $name" to LogLevel.WARN
+                    }
+                    print(msg, lv, true)
+                }, "panel-whitelist").apply { isDaemon = true; start() }
+            }
+            "remove" -> when {
+                name == null -> print("사용: .whitelist remove <이름>", LogLevel.WARN, true)
+                live -> sup.send("whitelist remove $name")
+                Whitelist.remove(dir, name) -> print("화이트리스트에서 뺐다: $name", LogLevel.INFO, true)
+                else -> print("화이트리스트에 없다: $name", LogLevel.WARN, true)
+            }
+            "on", "off" -> {
+                val on = sub == "on"
+                if (live) { sup.send("whitelist $sub"); sup.pendingWhitelist = on } else Whitelist.setEnabled(dir, on)
+                print("화이트리스트 ${if (on) "켬 (명단에 없는 사람은 접속할 수 없다)" else "끔"}", LogLevel.INFO, true)
+            }
+            "reload" -> if (live) sup.send("whitelist reload") else print("서버가 꺼져 있으면 켤 때 파일을 읽으므로 필요 없다", LogLevel.INFO, true)
+            else -> print("사용: .whitelist [list] | add <이름> | remove <이름> | on | off | reload", LogLevel.WARN, true)
         }
     }
 
@@ -196,6 +242,8 @@ class Cli(private val sup: Supervisor, private val configFile: Path) {
             ".autorestart" to listOf("on", "off"),
             ".schedule" to listOf("off", "06:00"),
             ".config" to listOf("dir"),
+            ".whitelist" to listOf("list", "add", "remove", "on", "off", "reload"),
+            "whitelist" to listOf("list", "add", "remove", "on", "off", "reload"),
             "season" to listOf("start", "status"),
             "gamerule" to emptyList(),
         )
@@ -209,6 +257,10 @@ class Cli(private val sup: Supervisor, private val configFile: Path) {
             }
             val prev = words.getOrNull(line.wordIndex() - 1) ?: ""
             sub[prev]?.forEach { candidates += Candidate(it) }
+            if (prev == "remove" && words.firstOrNull() in setOf(".whitelist", "whitelist")) {
+                Whitelist.read(sup.config.serverDir).forEach { candidates += Candidate(it.name, it.name, "화이트리스트", null, null, null, true) }
+                return
+            }
             synchronized(sup.players) { sup.players.forEach { candidates += Candidate(it, it, "접속자", null, null, null, true) } }
         }
     }

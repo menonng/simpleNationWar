@@ -187,3 +187,92 @@ object Backups {
 
     fun today(): LocalDate = LocalDate.now()
 }
+
+/**
+ * 화이트리스트. 서버가 켜져 있으면 바닐라 `whitelist` 명령으로, 꺼져 있으면 `whitelist.json`·`server.properties` 를 직접 고친다.
+ * 이름으로 UUID 를 찾는 일은 바닐라 서버와 같은 Mojang 프로필 API 를 쓴다([MojangProfiles]).
+ */
+data class WhitelistEntry(val uuid: String, val name: String)
+
+object Whitelist {
+    val NAME = Regex("^[A-Za-z0-9_]{3,16}$")
+    private val OBJ = Regex("\\{[^{}]*\\}")
+    private val UUID_F = Regex("\"uuid\"\\s*:\\s*\"([0-9a-fA-F-]{32,36})\"")
+    private val NAME_F = Regex("\"name\"\\s*:\\s*\"([^\"]*)\"")
+
+    fun file(dir: Path): Path = dir.resolve("whitelist.json")
+
+    fun parse(json: String): List<WhitelistEntry> = OBJ.findAll(json).mapNotNull { m ->
+        val u = UUID_F.find(m.value)?.groupValues?.get(1) ?: return@mapNotNull null
+        val n = NAME_F.find(m.value)?.groupValues?.get(1) ?: return@mapNotNull null
+        WhitelistEntry(u, n)
+    }.toList()
+
+    /** 바닐라와 같은 모양(두 칸 들여쓰기)으로. */
+    fun render(entries: List<WhitelistEntry>): String =
+        if (entries.isEmpty()) "[]\n"
+        else entries.joinToString(",\n", "[\n", "\n]\n") { "  {\n    \"uuid\": \"${it.uuid}\",\n    \"name\": \"${it.name}\"\n  }" }
+
+    fun read(dir: Path): List<WhitelistEntry> =
+        file(dir).takeIf { Files.exists(it) }?.let { parse(Files.readString(it)) } ?: emptyList()
+
+    fun write(dir: Path, entries: List<WhitelistEntry>) { Files.writeString(file(dir), render(entries)) }
+
+    enum class AddResult { ADDED, ALREADY, NOT_FOUND, BAD_NAME }
+
+    fun add(dir: Path, name: String, resolve: (String) -> WhitelistEntry?): AddResult {
+        if (!NAME.matches(name)) return AddResult.BAD_NAME
+        val list = read(dir)
+        if (list.any { it.name.equals(name, ignoreCase = true) }) return AddResult.ALREADY
+        val e = resolve(name) ?: return AddResult.NOT_FOUND
+        if (list.any { it.uuid.equals(e.uuid, ignoreCase = true) }) return AddResult.ALREADY
+        write(dir, list + e)
+        return AddResult.ADDED
+    }
+
+    fun remove(dir: Path, name: String): Boolean {
+        val list = read(dir)
+        val left = list.filterNot { it.name.equals(name, ignoreCase = true) }
+        if (left.size == list.size) return false
+        write(dir, left)
+        return true
+    }
+
+    /** server.properties 의 white-list / enforce-whitelist. 없으면 null. */
+    fun enabled(dir: Path): Boolean? = prop(dir, "white-list")?.toBooleanStrictOrNull()
+
+    /** 켜고 끌 때 white-list 와 enforce-whitelist 를 함께 바꾼다(켜면 이미 접속한 사람 중 명단에 없는 사람도 내보냄). 다른 줄은 그대로. */
+    fun setEnabled(dir: Path, on: Boolean) {
+        val f = dir.resolve("server.properties")
+        val lines = if (Files.exists(f)) Files.readAllLines(f).toMutableList() else mutableListOf()
+        for (key in listOf("white-list", "enforce-whitelist")) {
+            val i = lines.indexOfFirst { it.startsWith("$key=") }
+            if (i >= 0) lines[i] = "$key=$on" else lines += "$key=$on"
+        }
+        Files.write(f, lines)
+    }
+
+    private fun prop(dir: Path, key: String): String? {
+        val f = dir.resolve("server.properties")
+        if (!Files.exists(f)) return null
+        return Files.readAllLines(f).firstOrNull { it.startsWith("$key=") }?.substringAfter('=')?.trim()
+    }
+
+    /** 32자리 UUID 에 하이픈을 넣는다. */
+    fun dashed(id: String): String = if (id.length != 32) id else
+        "${id.substring(0, 8)}-${id.substring(8, 12)}-${id.substring(12, 16)}-${id.substring(16, 20)}-${id.substring(20)}"
+}
+
+/** 이름 → UUID. 바닐라 서버가 `whitelist add` 때 묻는 곳과 같다. 없거나 실패하면 null. */
+object MojangProfiles {
+    fun lookup(name: String): WhitelistEntry? = runCatching {
+        val client = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(5)).build()
+        val req = java.net.http.HttpRequest.newBuilder(java.net.URI.create("https://api.mojang.com/users/profiles/minecraft/$name"))
+            .timeout(java.time.Duration.ofSeconds(8)).GET().build()
+        val res = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString())
+        if (res.statusCode() != 200) return null
+        val id = Regex("\"id\"\\s*:\\s*\"([0-9a-fA-F]{32})\"").find(res.body())?.groupValues?.get(1) ?: return null
+        val n = Regex("\"name\"\\s*:\\s*\"([^\"]+)\"").find(res.body())?.groupValues?.get(1) ?: name
+        WhitelistEntry(Whitelist.dashed(id), n)
+    }.getOrNull()
+}
