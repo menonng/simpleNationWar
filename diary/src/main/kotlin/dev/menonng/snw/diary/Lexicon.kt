@@ -92,11 +92,8 @@ object Lexicon {
         listOf("{owner:은/는} 자기 망자를 직접 찾아가 짐을 되찾았다.", "망자는 {owner:이/가} 직접 찾아가 정리했다. 잃은 건 없다.", "짐은 무사했다. {owner:이/가} 자기 망자를 직접 되찾았다."),
         listOf("{owner:은/는} 자기 망자를 직접 찾아가 짐을 되찾았어요.", "망자는 {owner:이/가} 직접 찾아가 되찾았어요. 잃은 건 없어요."))
     val revenant_mate = p("revenant.mate",
-        listOf("{by:이/가} {owner}의 망자를 대신 정리해 줬다.", "{owner}의 망자는 {by:이/가} 처리했다. 짐은 고스란히 돌아갔다."),
-        listOf("{by:이/가} {owner}의 망자를 대신 정리해 줬어요. 좋은 이웃이에요."))
-    val revenant_looted = p("revenant.looted",
-        listOf("{owner}의 망자는 {by}의 손에 들어갔다.", "{by:이/가} {owner}의 망자를 털었다."),
-        listOf("{owner}의 망자가 {by}에게 털렸어요. 망자는 오래 기다려 주지 않아요."))
+        listOf("{owner:은/는} {by:과/와} 함께 망자를 찾아가 짐을 되찾았다.", "{by:이/가} 주변 좀비를 막는 사이 {owner:이/가} 자기 망자를 정리했다."),
+        listOf("{owner:은/는} {by:과/와} 함께 망자를 찾아가 짐을 되찾았어요.", "{by:이/가} 곁을 지키는 동안 {owner:이/가} 자기 망자를 정리했어요. 좋은 이웃이에요."))
 
     val alpha = p("alpha",
         listOf("알파가 쓰러졌다. {killers}의 몫이다.", "(?zone:{zone}의 )알파를 {killers:이/가} 잡았다."),

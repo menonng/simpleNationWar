@@ -150,7 +150,6 @@ class DiaryWriter(
             }
             is DiaryEvent.RevenantRecovered ->
                 ctx.say(if (Story.SELF_RECOVERY in st) "revenant.self" else "revenant.mate", mapOf("owner" to name(e.owner), "by" to name(e.by)), previous)
-            is DiaryEvent.RevenantLooted -> ctx.say("revenant.looted", mapOf("owner" to name(e.owner), "by" to name(e.by)), previous)
             is DiaryEvent.AlphaKilled ->
                 ctx.say(if (Story.FIRST_EVER in st) "alpha.first" else "alpha", mapOf("killers" to names(e.killers), "zone" to zone(e.zone)), previous)
             is DiaryEvent.NestDestroyed -> ctx.say("nest", mapOf("participants" to names(e.participants), "zone" to zone(e.zone)), previous)

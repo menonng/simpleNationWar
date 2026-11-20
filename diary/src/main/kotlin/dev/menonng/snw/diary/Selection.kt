@@ -27,7 +27,6 @@ fun peopleOf(e: DiaryEvent): List<PersonRef> = when (e) {
     is DiaryEvent.AccidentDeath -> listOf(e.victim)
     is DiaryEvent.PvpKill -> listOf(e.killer, e.victim) + e.assists
     is DiaryEvent.RevenantRecovered -> listOf(e.owner, e.by).distinctBy { it.id }
-    is DiaryEvent.RevenantLooted -> listOf(e.owner, e.by)
     is DiaryEvent.AlphaKilled -> e.killers
     is DiaryEvent.NestDestroyed -> e.participants
     is DiaryEvent.BloodMoon -> e.participants
@@ -118,7 +117,6 @@ class Selector(private val maxItems: Int = 6, private val maxPerPerson: Int = 2)
         var s = when (e) {
             is DiaryEvent.BloodMoon -> 9.0
             is DiaryEvent.AlphaKilled -> 8.0
-            is DiaryEvent.RevenantLooted -> 7.0
             is DiaryEvent.LandmarkCaptured -> 7.0
             is DiaryEvent.PvpKill -> 6.0
             is DiaryEvent.NestDestroyed -> 5.0

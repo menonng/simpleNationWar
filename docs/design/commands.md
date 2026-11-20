@@ -53,6 +53,10 @@ couriersRoost 의 `/birds`, `/birdtrack` 은 운영자 권한 명령이다(일�
 | `/snw nation <국가> rename <이름>` | 국가 이름 지정 |
 | `/snw nation <국가> leader <플레이어>` | 원수 지정 |
 | `/snw member <플레이어> set <국가>` / `clear` | 강제 배정·해제 |
+| `/snw spawn set <국가> <x> <z>` | 국가 스폰 지점 지정 (1,000~3,000 고리·간격 규칙 검사) |
+| `/snw spawn check` | 세 국가 스폰 지점이 규칙을 지키는지, 개인 스폰 지점 분포 |
+| `/snw season start` | 시즌 시작: 모두 국가 스폰 지점 주변(개인 스폰 지점)으로 이동, 서바이벌, 시즌 시계 시작 |
+| `/snw season status` | 시즌 경과, 국가별 접속·인원 |
 | `/snw transfer open <시간>` | 이적 창 열기 |
 | `/snw claim <국가> add\|remove [반경]` | 영토 수동 조정 |
 | `/snw relation <국가> <국가> <중립\|동맹\|적대>` | 관계 강제 설정 |

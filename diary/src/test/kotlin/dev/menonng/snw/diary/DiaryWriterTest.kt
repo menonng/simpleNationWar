@@ -38,7 +38,7 @@ class DiaryWriterTest {
             DiaryEvent.AlphaKilled(DayPart.NIGHT, listOf(noeul, rain, shy), Zone.Wilderness("서쪽")),
             DiaryEvent.Starforce(DayPart.DAY, haneul, "다이아몬드 검", 9),
             DiaryEvent.VaccineShard(DayPart.NIGHT, rain),
-            DiaryEvent.RevenantLooted(DayPart.NIGHT, minjun, haneul),
+            DiaryEvent.RevenantRecovered(DayPart.NIGHT, minjun, haneul),
         ), 0.6, 0.55, mapOf("1국" to 80.0, "2국" to 70.0, "3국" to 33.0), shards = 1),
         day(4, emptyList(), 0.55, 0.6),
         day(5, listOf(

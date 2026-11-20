@@ -59,8 +59,8 @@ sealed interface DiaryEvent {
     data class ZombieDeath(override val part: DayPart, val victim: PersonRef, val variant: String?, val zone: Zone) : DiaryEvent
     data class AccidentDeath(override val part: DayPart, val victim: PersonRef, val cause: Accident, val zone: Zone) : DiaryEvent
     data class PvpKill(override val part: DayPart, val killer: PersonRef, val victim: PersonRef, val assists: List<PersonRef>, val zone: Zone) : DiaryEvent
+    /** 망자는 주인만 쓰러뜨릴 수 있다. [by] 는 회수할 때 곁에 있던 자국민(없으면 owner 와 같음). */
     data class RevenantRecovered(override val part: DayPart, val owner: PersonRef, val by: PersonRef) : DiaryEvent
-    data class RevenantLooted(override val part: DayPart, val owner: PersonRef, val by: PersonRef) : DiaryEvent
     data class AlphaKilled(override val part: DayPart, val killers: List<PersonRef>, val zone: Zone) : DiaryEvent
     data class NestDestroyed(override val part: DayPart, val participants: List<PersonRef>, val zone: Zone) : DiaryEvent
     data class BloodMoon(override val part: DayPart, val defended: Boolean, val participants: List<PersonRef>, val target: String) : DiaryEvent

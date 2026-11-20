@@ -27,6 +27,7 @@
 | type | ✔ | data |
 |---|---|---|
 | `hello` | | `serverVersion`, `mods{snw,zomapo,…}`, `online[uuid]` |
+| `season.start` | ✔ | `startedAt`, `nations{id: {spawn{x,z}}}` — 봇이 #공지에 개장 알림(좌표는 보내지 않는다) |
 | `player.join` / `player.leave` | | `uuid`, `ts` |
 | `link.code` | ✔ | `uuid`, `name`, `code`, `expiresAt` |
 | `player.death` | ✔ | `victim`, `killer?`, `assists[]`, `cause`, `pvp`, `victimNation`, `killerNation?` |
