@@ -341,10 +341,14 @@ class PanelWindow(private var config: PanelConfig, private val configFile: Path)
     }
 }
 
-/** 사용: snw-panel [설정 파일] [--autostart]   --autostart 는 창이 뜨면 바로 서버를 켠다. */
+/**
+ * 사용: snw-panel [설정 파일] [--autostart] [--gui]
+ *  기본은 Paper 콘솔 같은 CLI. --gui 는 창 버전. --autostart 는 바로 서버를 켠다.
+ */
 fun main(args: Array<String>) {
     val configFile = Path.of(args.firstOrNull { !it.startsWith("--") } ?: "panel.properties").toAbsolutePath()
     val config = PanelConfig.load(configFile)
+    if ("--gui" !in args) { runCli(config, configFile, "--autostart" in args); return }
     FlatDarkLaf.setup()
     SwingUtilities.invokeLater {
         val w = PanelWindow(config, configFile)

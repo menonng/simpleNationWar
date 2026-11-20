@@ -16,6 +16,7 @@ repositories { mavenCentral() }
 
 dependencies {
     implementation(libs.flatlaf)
+    implementation(libs.jline)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(kotlin("test"))
