@@ -11,7 +11,7 @@ enum class ChatRoute {
 }
 
 /**
- * 채팅 경로 판단. docs/design/commands.md 1절 '채팅'.
+ * 채팅 경로 판단. docs/design/nation.md '명령어' 1절 '채팅'.
  * 기본은 국가(바닐라 팀) 채팅이고, 전체 채팅은 `/g` 명령으로만 나간다.
  */
 object ChatRouter {

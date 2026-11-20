@@ -35,7 +35,7 @@ data class Ring(val points: List<Point>) {
 data class Polygon(val outer: Ring, val holes: List<Ring>)
 
 /**
- * 청크 집합을 다각형(구멍 포함)으로 합친다. docs/design/map-integration.md 3절.
+ * 청크 집합을 다각형(구멍 포함)으로 합친다. docs/design/nation.md '지도 연동' 3절.
  * 1) 청크마다 반시계 방향 변 4개 2) 이웃과 겹치는 반대 방향 변 제거 3) 남은 변을 이어 고리
  * 4) 넓이 부호로 바깥/구멍 구분 5) 일직선 위 꼭짓점 제거.
  * 대각선으로만 닿은 두 청크는 서로 다른 다각형이 된다(꼭짓점에서 왼쪽으로 꺾는 규칙).

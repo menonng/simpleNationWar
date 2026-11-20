@@ -2,7 +2,7 @@
 
 ## 1. 스택
 
-zomApo 와 같다: Kotlin 2.4.x, Java 25, Fabric Loader 0.19.3+, Fabric API `0.161.0+26.3`, FLK `1.14.2+kotlin.2.4.21`, Gradle 플러그인 `net.fabricmc.fabric-loom`(26.x: Yarn 없음, Mojang 이름, 리매핑 없음), `"environment": "server"`. 버전 정책은 zomApo [version-policy.md](https://github.com/menonng/zomApo/blob/HEAD/docs/server/version-policy.md).
+zomApo 와 같다: Kotlin 2.4.x, Java 25, Fabric Loader 0.19.3+, Fabric API `0.161.0+26.3`, FLK `1.14.2+kotlin.2.4.21`, Gradle 플러그인 `net.fabricmc.fabric-loom`(26.x: Yarn 없음, Mojang 이름, 리매핑 없음), `"environment": "server"`. 버전 정책은 zomApo [README.md](https://github.com/menonng/zomApo/blob/HEAD/docs/server/README.md#버전-정책).
 
 선택 의존(`compileOnly`): BlueMap API, squaremap API.
 

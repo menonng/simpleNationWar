@@ -6,7 +6,7 @@
 
 > **현재 단계: 개발 시작.** 빌드 골격, 공개 API(`snw-api`), 순수 로직(닉네임 개인정보 검사, K/D/A 판정, 영토 규칙, 영토 다각형 병합, 한국어 조사), 생존일지 생성기가 들어왔다. 시즌 1 은 2027-01-16 ~ 02-07(23일). 문서의 일·시간은 모두 현실 시간이다.
 
-같은 서버의 좀비 모드는 [zomApo](https://github.com/menonng/zomApo), 서버 전체 기획(결정 사항, 모드 목록, 시뮬레이션, 일정)은 zomApo 의 [docs/server](https://github.com/menonng/zomApo/blob/HEAD/docs/server/README.md) 에 있다.
+같은 서버의 좀비 모드는 [zomApo](https://github.com/menonng/zomApo), 서버 전체 기획(결정 사항, 모드 목록, 시뮬레이션, 일정)은 zomApo 의 [docs/server](https://github.com/menonng/zomApo/blob/HEAD/docs/server/README.md#개요) 에 있다.
 
 ## 빌드
 
@@ -43,23 +43,24 @@ JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼�
 | `/info [플레이어]` | `/정보` | 닉네임·국가·직위·K·KDA·좀비 처치·좀비 스코어 카드 |
 | `/g <메시지>` | `/전체` | 전체 채팅 |
 
-**그냥 치는 채팅은 국가 채팅**이다(국가 = 바닐라 팀, 바닐라 `/teammsg` 와 같은 경로). 전체 채팅은 `/g` 로만 나간다. couriersRoost 가 있으면 둘 다 전서구로 배달된다. 전체 목록은 [docs/design/commands.md](docs/design/commands.md).
+**그냥 치는 채팅은 국가 채팅**이다(국가 = 바닐라 팀, 바닐라 `/teammsg` 와 같은 경로). 전체 채팅은 `/g` 로만 나간다. couriersRoost 가 있으면 둘 다 전서구로 배달된다. 전체 목록은 [docs/design/commands.md](docs/design/nation.md#명령어).
 
 ## 문서
 
+### 통합 문서 (먼저 읽을 것)
+
+| 문서 | 목차 |
+|---|---|
+| [국가 모드](docs/design/nation.md) | 국가(3국·직위·영토·보호·관계·거점전·국고·스폰) · 명령어(채팅 포함) · 화면 · 지도 연동 · KDA |
+| [디스코드 연동](docs/discord/README.md) | 구조 · 디스코드 봇(가입·명령·알림·DB) · 연동 모드 |
+
+### 상세 문서
+
 | 문서 | 내용 |
 |---|---|
-| [docs/reference/towns-and-nations.md](docs/reference/towns-and-nations.md) | Towns and Nations 분석과 채택·변경·제외 대응표 |
-| [docs/design/nation.md](docs/design/nation.md) | 국가 시스템: 3국 고정, 직위, 영토, 보호, 관계, 거점전, 국고, 연구 |
-| [docs/design/commands.md](docs/design/commands.md) | 명령어 전체 (플레이어·관리자·디스코드) |
-| [docs/design/stats-kda.md](docs/design/stats-kda.md) | K/D/A 정의와 저장, 표시 |
-| [docs/design/nickname.md](docs/design/nickname.md) | 커스텀 닉네임 규칙과 쓰는 곳 |
-| [docs/design/ui.md](docs/design/ui.md) | 국가 GUI, 국민 목록, 정보 카드, 색상 |
-| [docs/design/map-integration.md](docs/design/map-integration.md) | BlueMap·squaremap 연동 |
-| [docs/discord/README.md](docs/discord/README.md) | 디스코드 연동 전체 구조 |
-| [docs/discord/bot.md](docs/discord/bot.md) | 디스코드 봇 |
-| [docs/discord/mod.md](docs/discord/mod.md) | 디스코드 연동 모드 |
-| [docs/discord/protocol.md](docs/discord/protocol.md) | 모드 ↔ 봇 통신 규약 |
-| [docs/discord/peer-rating.md](docs/discord/peer-rating.md) | 상호평가(⭐ 5점)와 국가 추첨식(팀 편성) |
-| [docs/discord/diary.md](docs/discord/diary.md) | 생존일지: 입력(개인정보 제외), 생성 과정, 목소리, AI 말투 규칙 |
-| [docs/tech/architecture.md](docs/tech/architecture.md) | 기술 구조, `snw-api`, 저장 |
+| [nickname.md](docs/design/nickname.md) | 커스텀 닉네임 규칙과 개인정보 검사 |
+| [peer-rating.md](docs/discord/peer-rating.md) | 상호평가(⭐ 5점)와 국가 추첨식 |
+| [diary.md](docs/discord/diary.md) | 생존일지: 입력(개인정보 제외), 생성 과정, 목소리, AI 말투 규칙 |
+| [protocol.md](docs/discord/protocol.md) | 모드 ↔ 봇 통신 규약 |
+| [architecture.md](docs/tech/architecture.md) | 기술 구조, `snw-api`, 저장 |
+| [towns-and-nations.md](docs/reference/towns-and-nations.md) | Towns and Nations 분석과 채택·변경·제외 대응표 |

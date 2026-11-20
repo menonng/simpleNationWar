@@ -28,7 +28,7 @@ interface Allegiance {
 }
 
 /**
- * K/D/A 판정. docs/design/stats-kda.md 1절.
+ * K/D/A 판정. docs/design/nation.md 'KDA' 1절.
  * D 는 모든 사망을 세고(호출하는 쪽에서 +1), 여기서는 K·A·PvP 사망 여부만 정한다.
  */
 class KdaJudge(
