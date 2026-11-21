@@ -41,6 +41,8 @@
 | `zomapo.daily` | | `globalRamp`, `nations{id: level}`, `serverInfection` |
 | `starforce.success` | | `uuid`, `item`, `star` (10성 달성만) |
 | `zomapo.bloodmoon.notice` | | `startsAt`, `target`(수도 id 또는 camp), `online` — 블러드문 10분 전 예고 |
+| `zomapo.bloodmoon.start` | | `target` — 시작(규칙: zomApo 좀비 문서 '감염 레벨' 6절) |
+| `zomapo.bloodmoon.result` | | `target`, `success`, `wavesHeld`(0~3), `participants[]`(uuid) |
 | `stats.snapshot` | | `players[{uuid, k, d, a, dPvp, zombieKills, zombieScore, playtime}]` |
 | `rating.submit` | ✔ | `round`, `rater`, `target`, `scores{category: 1~5 \| null}` |
 
