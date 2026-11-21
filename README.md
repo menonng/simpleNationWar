@@ -60,7 +60,7 @@ JDK 25 가 필요하다. Gradle 과 마인크래프트·Fabric 파일은 래퍼�
 | 문서 | 내용 |
 |---|---|
 | [nickname.md](docs/design/nickname.md) | 커스텀 닉네임 규칙과 개인정보 검사 |
-| [handheld-map.md](docs/design/handheld-map.md) | 휴대 지도(보조손 지도) 검토안, 예시 만드는 도구 `tools/mapmock` |
+| [handheld-map.md](docs/design/handheld-map.md) | 휴대 지도(보조손 지도, 자국민 아이콘 포함), 예시 만드는 도구 `tools/mapmock` |
 | [peer-rating.md](docs/discord/peer-rating.md) | 상호평가(⭐ 5점)와 국가 추첨식 |
 | [diary.md](docs/discord/diary.md) | 오늘의 서버 기록(생존일지): 형식, 175% 클로드 문체, 입력(개인정보 제외), 생성 과정 |
 | [protocol.md](docs/discord/protocol.md) | 모드 ↔ 봇 통신 규약 |
