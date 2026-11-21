@@ -152,7 +152,7 @@ object InfoMenus {
             if (hide.isNotEmpty()) set(DataComponents.TOOLTIP_DISPLAY, TooltipDisplay(false, LinkedHashSet(hide)))
         }
 
-    private fun filler(): ItemStack = ItemStack(Items.STAINED_GLASS_PANE.gray()).apply {
+    private fun filler(): ItemStack = ItemStack(Items.STAINED_GLASS_PANE.black()).apply {
         set(DataComponents.TOOLTIP_DISPLAY, TooltipDisplay(true, LinkedHashSet()))
     }
 
@@ -161,6 +161,8 @@ object InfoMenus {
         set(DataComponents.PROFILE, if (e.online != null) ResolvableProfile.createResolved(profile) else ResolvableProfile.createUnresolved(e.id))
         set(DataComponents.CUSTOM_NAME, name)
         set(DataComponents.LORE, ItemLore(lore))
+        // 바닐라 머리 설명("동적" 등)을 숨긴다
+        set(DataComponents.TOOLTIP_DISPLAY, TooltipDisplay(false, linkedSetOf<DataComponentType<*>>(DataComponents.PROFILE)))
     }
 
     private fun lastSeen(server: MinecraftServer, e: Entry): String {
@@ -200,7 +202,7 @@ object InfoMenus {
         val pages = maxOf(1, (sorted.size + PAGE_SIZE - 1) / PAGE_SIZE)
         val page = state.page.coerceIn(0, pages - 1)
         val container = SimpleContainer(ROWS * 9)
-        for (i in 0 until ROWS * 9) container.setItem(i, filler())
+        for (i in 0 until 9) { container.setItem(i, filler()); container.setItem(45 + i, filler()) }
         val actions = HashMap<Int, (ServerPlayer) -> Unit>()
 
         // 1줄: 내 정보, 국가 필터, 정렬
@@ -269,7 +271,7 @@ object InfoMenus {
         val color = nationColor(t)
         val s = stats(server, e)
         val container = SimpleContainer(ROWS * 9)
-        for (i in 0 until ROWS * 9) container.setItem(i, filler())
+        for (i in 0 until ROWS * 9) if (i < 9 || i >= 45 || i % 9 == 0 || i % 9 == 8) container.setItem(i, filler())
         val actions = HashMap<Int, (ServerPlayer) -> Unit>()
         fun extra(section: String) = extraLines.flatMap { it(e.id, section) }
 
