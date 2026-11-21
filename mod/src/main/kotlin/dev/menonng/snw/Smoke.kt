@@ -59,6 +59,7 @@ internal object Smoke {
         } finally {
             scoreboard.removePlayerTeam(team)
         }
+        failures += infoChecks(server)
         Snw.log.info("[simpleNationWar] smoke: couriersRoost={}, 채팅 경로 확인 {}", courier, if (failures.isEmpty()) "통과" else "실패")
         return failures
     }
@@ -70,5 +71,28 @@ internal object Smoke {
 
     private fun chat(server: MinecraftServer, player: FakePlayer, text: String) {
         server.playerList.broadcastChatMessage(PlayerChatMessage.system(text), player, ChatType.bind(ChatType.CHAT, player))
+    }
+
+    /** /info 상자 창: 명령 등록, 클릭하면 동작만 하고 아이템은 빠지지 않는지. */
+    private fun infoChecks(server: MinecraftServer): List<String> {
+        val f = mutableListOf<String>()
+        val root = server.commands.dispatcher.root
+        if (root.getChild("info") == null || root.getChild("정보") == null) f += "/info·/정보 명령 미등록"
+        val fake = net.fabricmc.fabric.api.entity.FakePlayer.get(server.overworld())
+        val container = net.minecraft.world.SimpleContainer(54)
+        container.setItem(10, net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.PLAYER_HEAD))
+        var clicked = 0
+        val menu = dev.menonng.snw.info.InfoMenus.ReadOnlyMenu(1, fake.inventory, container, mapOf(10 to { _: net.minecraft.server.level.ServerPlayer -> clicked++ }))
+        menu.clicked(10, 0, net.minecraft.world.inventory.ContainerInput.PICKUP, fake)
+        menu.clicked(10, 0, net.minecraft.world.inventory.ContainerInput.QUICK_MOVE, fake)
+        menu.clicked(10, 0, net.minecraft.world.inventory.ContainerInput.THROW, fake)
+        menu.clicked(10, 1, net.minecraft.world.inventory.ContainerInput.SWAP, fake)
+        if (clicked != 2) f += "/info 칸 클릭 동작 횟수 오류: $clicked"
+        if (container.getItem(10).isEmpty) f += "/info 창에서 아이템이 빠짐"
+        if (!menu.carried.isEmpty) f += "/info 창에서 아이템을 집음"
+        if (fake.inventory.contains { it.`is`(net.minecraft.world.item.Items.PLAYER_HEAD) }) f += "/info 창의 아이템이 인벤토리로 옮겨짐"
+        val entries = dev.menonng.snw.info.InfoMenus.entries(server)
+        Snw.log.info("[simpleNationWar] smoke: /info 목록 {}명", entries.size)
+        return f
     }
 }

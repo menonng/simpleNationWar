@@ -1,6 +1,7 @@
 package dev.menonng.snw
 
 import dev.menonng.snw.chat.ChatRouting
+import dev.menonng.snw.info.InfoMenus
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import org.slf4j.LoggerFactory
@@ -13,6 +14,7 @@ object Snw : ModInitializer {
         log.info("simpleNationWar 초기화")
         SnwConfig.load()
         ChatRouting.register()
+        InfoMenus.register()
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
             if (System.getProperty("snw.smoke") == "true") {
                 val failures = Smoke.run(server)
