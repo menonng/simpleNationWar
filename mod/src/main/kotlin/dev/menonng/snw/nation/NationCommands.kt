@@ -1,0 +1,238 @@
+package dev.menonng.snw.nation
+
+import com.mojang.brigadier.arguments.IntegerArgumentType
+import com.mojang.brigadier.arguments.StringArgumentType
+import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.suggestion.SuggestionProvider
+import dev.menonng.snw.api.ChunkKey
+import dev.menonng.snw.api.Relation
+import dev.menonng.snw.api.Role
+import dev.menonng.snw.logic.spawn.NationSpawn
+import dev.menonng.snw.logic.spawn.XZ
+import dev.menonng.snw.logic.state.NationRegistry
+import dev.menonng.snw.logic.territory.Chunk
+import dev.menonng.snw.logic.territory.TerritoryRules
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.Commands
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.Style
+import net.minecraft.network.chat.TextColor
+import net.minecraft.server.level.ServerLevel
+
+/**
+ * 운영자 `/snw` 와 일반 `/n` 의 국가·영토·관계 명령(nation.md '명령어').
+ * 알림·안내 문구는 하십시오체.
+ */
+object NationCommands {
+    private val rules = TerritoryRules()
+    /** 생존자 캠프(중앙) 점령 금지 반경(청크). */
+    const val CAMP_CHUNK_RADIUS = 4
+
+    private val nationIds = SuggestionProvider<CommandSourceStack> { _, b -> SharedSuggestionProvider.suggest(Nations.registry.nations.keys, b) }
+    private val playerNames = SuggestionProvider<CommandSourceStack> { c, b -> SharedSuggestionProvider.suggest(c.source.server.playerList.playerNamesArray.toList(), b) }
+    private val relationWords = SuggestionProvider<CommandSourceStack> { _, b -> SharedSuggestionProvider.suggest(listOf("ally", "neutral", "hostile", "동맹", "중립", "적대"), b) }
+
+    fun dim(level: ServerLevel): String = level.dimension().identifier().toString()
+
+    private fun ok(c: CommandContext<CommandSourceStack>, msg: String) { c.source.sendSuccess({ Component.literal(msg) }, true) }
+    private fun fail(c: CommandContext<CommandSourceStack>, msg: String): Int { c.source.sendFailure(Component.literal(msg)); return 0 }
+
+    private fun parseRelation(w: String): Relation? = when (w.lowercase()) {
+        "ally", "allied", "동맹" -> Relation.ALLIED
+        "neutral", "중립" -> Relation.NEUTRAL
+        "hostile", "적대" -> Relation.HOSTILE
+        else -> null
+    }
+
+    fun relationName(r: Relation) = when (r) { Relation.ALLIED -> "동맹"; Relation.NEUTRAL -> "중립"; Relation.HOSTILE -> "적대" }
+
+    private fun nationArg(c: CommandContext<CommandSourceStack>): NationRegistry.Nation? =
+        Nations.registry.nation(StringArgumentType.getString(c, "nation"))
+
+    fun register() {
+        CommandRegistrationCallback.EVENT.register { d, _, _ ->
+            val admin = Commands.literal("snw").requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+                .then(Commands.literal("status").executes { status(it) })
+                .then(Commands.literal("save").executes { Nations.save(it.source.server); ok(it, "국가 데이터를 저장했습니다."); 1 })
+                .then(Commands.literal("nation").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
+                    .then(Commands.literal("rename").then(Commands.argument("name", StringArgumentType.greedyString()).executes { c ->
+                        val n = nationArg(c) ?: return@executes fail(c, "그런 국가가 없습니다.")
+                        n.name = StringArgumentType.getString(c, "name").trim().take(16); Nations.markDirty(); Nations.syncTeams(c.source.server)
+                        ok(c, "${n.id} 의 이름을 '${n.name}'(으)로 바꿨습니다."); 1
+                    }))
+                    .then(Commands.literal("leader").then(Commands.argument("player", StringArgumentType.word()).suggests(playerNames).executes { c ->
+                        val n = nationArg(c) ?: return@executes fail(c, "그런 국가가 없습니다.")
+                        val id = Nations.idOf(c.source.server, StringArgumentType.getString(c, "player")) ?: return@executes fail(c, "그런 플레이어를 찾지 못했습니다.")
+                        Nations.assignAndSync(id, n.id, Role.LEADER); ok(c, "${n.name} 의 원수를 지정했습니다."); 1
+                    }))))
+                .then(Commands.literal("member").then(Commands.argument("player", StringArgumentType.word()).suggests(playerNames)
+                    .then(Commands.literal("set").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds).executes { c ->
+                        val n = nationArg(c) ?: return@executes fail(c, "그런 국가가 없습니다.")
+                        val id = Nations.idOf(c.source.server, StringArgumentType.getString(c, "player")) ?: return@executes fail(c, "그런 플레이어를 찾지 못했습니다.")
+                        Nations.assignAndSync(id, n.id); ok(c, "${n.name}(으)로 배정했습니다."); 1
+                    }))
+                    .then(Commands.literal("officer").executes { c ->
+                        val id = Nations.idOf(c.source.server, StringArgumentType.getString(c, "player")) ?: return@executes fail(c, "그런 플레이어를 찾지 못했습니다.")
+                        val n = Nations.registry.nationOf(id) ?: return@executes fail(c, "국가에 속해 있지 않습니다.")
+                        if (n.officers.size >= NationRegistry.MAX_OFFICERS) return@executes fail(c, "간부는 두 명까지입니다.")
+                        Nations.assignAndSync(id, n.id, Role.OFFICER); ok(c, "간부로 임명했습니다."); 1
+                    })
+                    .then(Commands.literal("clear").executes { c ->
+                        val id = Nations.idOf(c.source.server, StringArgumentType.getString(c, "player")) ?: return@executes fail(c, "그런 플레이어를 찾지 못했습니다.")
+                        Nations.assignAndSync(id, null); ok(c, "소속을 해제했습니다."); 1
+                    })))
+                .then(Commands.literal("spawn")
+                    .then(Commands.literal("set").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
+                        .then(Commands.argument("x", IntegerArgumentType.integer()).then(Commands.argument("z", IntegerArgumentType.integer()).executes { c ->
+                            val n = nationArg(c) ?: return@executes fail(c, "그런 국가가 없습니다.")
+                            n.spawnX = IntegerArgumentType.getInteger(c, "x"); n.spawnZ = IntegerArgumentType.getInteger(c, "z"); Nations.markDirty()
+                            ok(c, "${n.name} 의 국가 스폰 지점을 지정했습니다. ${spawnProblems()}"); 1
+                        }))))
+                    .then(Commands.literal("check").executes { c -> ok(c, spawnProblems()); 1 }))
+                .then(Commands.literal("claim").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
+                    .then(Commands.literal("add").executes { claimArea(it, true, 0) }
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(0, 8)).executes { claimArea(it, true, IntegerArgumentType.getInteger(it, "radius")) }))
+                    .then(Commands.literal("remove").executes { claimArea(it, false, 0) }
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(0, 8)).executes { claimArea(it, false, IntegerArgumentType.getInteger(it, "radius")) }))))
+                .then(Commands.literal("relation").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
+                    .then(Commands.argument("other", StringArgumentType.word()).suggests(nationIds)
+                        .then(Commands.argument("relation", StringArgumentType.word()).suggests(relationWords).executes { c ->
+                            val a = nationArg(c) ?: return@executes fail(c, "그런 국가가 없습니다.")
+                            val b = Nations.registry.nation(StringArgumentType.getString(c, "other")) ?: return@executes fail(c, "그런 국가가 없습니다.")
+                            val rel = parseRelation(StringArgumentType.getString(c, "relation")) ?: return@executes fail(c, "관계는 동맹·중립·적대 중 하나입니다.")
+                            val before = Nations.registry.relation(a.id, b.id, System.currentTimeMillis())
+                            Nations.registry.force(a.id, b.id, rel); Nations.notifyRelation(a.id, b.id, before, rel)
+                            ok(c, "${a.name}·${b.name} 관계를 ${relationName(rel)}(으)로 바꿨습니다."); 1
+                        }))))
+            d.register(admin)
+
+            val n = Commands.literal("n").executes { info(it) }
+                .then(Commands.literal("claim").executes { playerClaim(it, true) })
+                .then(Commands.literal("unclaim").executes { playerClaim(it, false) })
+                .then(Commands.literal("relation").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
+                    .then(Commands.argument("relation", StringArgumentType.word()).suggests(relationWords).executes { playerRelation(it) })))
+                .then(Commands.literal("officer").then(Commands.argument("player", StringArgumentType.word()).suggests(playerNames).executes { c ->
+                    val me = c.source.playerOrException
+                    val nat = Nations.registry.nationOf(me.uuid) ?: return@executes fail(c, "국가에 속해 있지 않습니다.")
+                    if (nat.leader != me.uuid) return@executes fail(c, "간부 임명은 원수만 할 수 있습니다.")
+                    val id = Nations.idOf(c.source.server, StringArgumentType.getString(c, "player")) ?: return@executes fail(c, "그런 플레이어를 찾지 못했습니다.")
+                    if (Nations.registry.nationOf(id)?.id != nat.id) return@executes fail(c, "같은 국가 국민만 임명할 수 있습니다.")
+                    if (id in nat.officers) { nat.officers.remove(id); Nations.markDirty(); ok(c, "간부에서 해임했습니다."); return@executes 1 }
+                    if (nat.officers.size >= NationRegistry.MAX_OFFICERS) return@executes fail(c, "간부는 두 명까지입니다.")
+                    Nations.assignAndSync(id, nat.id, Role.OFFICER); ok(c, "간부로 임명했습니다."); 1
+                }))
+            val nRoot = d.register(n)
+            d.register(Commands.literal("국가").redirect(nRoot).executes { info(it) })
+        }
+    }
+
+    private fun spawnProblems(): String {
+        val pts = Nations.registry.nations.values.mapNotNull { n -> n.spawnX?.let { XZ(it.toDouble(), n.spawnZ!!.toDouble()) } }
+        if (pts.size < 3) return "(스폰 지점 ${pts.size}/3 지정)"
+        val p = NationSpawn.validate(pts)
+        return if (p.isEmpty()) "세 국가 스폰 지점이 규칙을 지킵니다." else "규칙 위반: ${p.joinToString()}"
+    }
+
+    private fun status(c: CommandContext<CommandSourceStack>): Int {
+        val now = System.currentTimeMillis()
+        val reg = Nations.registry
+        val lines = reg.nations.values.map { n ->
+            val hp = reg.coreHp(n, now).toInt()
+            val online = n.members.count { c.source.server.playerList.getPlayer(it) != null }
+            "${n.id} ${n.name}${if (n.fallen) " (멸망)" else ""}: 국민 ${n.members.size}명(접속 $online), 영토 ${reg.territory(n.id).size}청크, 코어 ${if (n.core == null) "없음" else "$hp"}"
+        }
+        val rel = reg.nations.keys.toList().let { ids -> ids.flatMapIndexed { i, a -> ids.drop(i + 1).map { b -> "$a-$b ${relationName(reg.relation(a, b, now))}" } } }
+        c.source.sendSuccess({ Component.literal((lines + rel.joinToString(", ")).joinToString("\n")) }, false)
+        return 1
+    }
+
+    private fun claimArea(c: CommandContext<CommandSourceStack>, add: Boolean, r: Int): Int {
+        val n = nationArg(c) ?: return fail(c, "그런 국가가 없습니다.")
+        val pos = c.source.position
+        val d = dim(c.source.level)
+        val cx = pos.x.toInt() shr 4; val cz = pos.z.toInt() shr 4
+        val chunks = (-r..r).flatMap { dx -> (-r..r).map { dz -> ChunkKey(d, cx + dx, cz + dz) } }
+        return if (add) {
+            val got = Nations.claimAndNotify(n.id, chunks)
+            ok(c, "${n.name} 영토로 ${got.size}청크를 넣었습니다(이미 주인이 있는 청크는 건너뜀)."); 1
+        } else {
+            val owned = chunks.filter { Nations.registry.ownerOf(it)?.id == n.id }
+            Nations.unclaimAndNotify(owned); ok(c, "${n.name} 영토에서 ${owned.size}청크를 풀었습니다."); 1
+        }
+    }
+
+    /** 수도(코어가 있으면 코어 청크, 없으면 첫 영토)와 이어진 본토, 나머지 덩어리는 전초기지. */
+    fun shape(n: NationRegistry.Nation, dimension: String): Triple<Chunk?, Set<Chunk>, List<Set<Chunk>>> {
+        val own = Nations.registry.territory(n.id).filter { it.dimension == dimension }.map { Chunk(it.x, it.z) }.toSet()
+        val capital = n.core?.takeIf { it.dimension == dimension }?.let { Chunk(it.x shr 4, it.z shr 4) } ?: own.firstOrNull()
+        if (capital == null) return Triple(null, emptySet(), emptyList())
+        val main = TerritoryRules.connectedFrom(capital, own)
+        val rest = (own - main).toMutableSet(); val outposts = mutableListOf<Set<Chunk>>()
+        while (rest.isNotEmpty()) { val part = TerritoryRules.connectedFrom(rest.first(), rest); outposts += part; rest -= part }
+        return Triple(capital, main, outposts)
+    }
+
+    fun cap(n: NationRegistry.Nation): Int = rules.cap(n.members.size, n.members.sumOf { Nations.zombieScore(it) }, 0)
+
+    private fun playerClaim(c: CommandContext<CommandSourceStack>, add: Boolean): Int {
+        val me = c.source.playerOrException
+        val n = Nations.registry.nationOf(me.uuid)?.takeIf { !it.fallen } ?: return fail(c, "국가에 속해 있지 않습니다.")
+        val d = dim(me.level())
+        val target = Chunk(me.blockPosition().x shr 4, me.blockPosition().z shr 4)
+        val (capital, main, outposts) = shape(n, d)
+        if (add) {
+            if (capital == null) return fail(c, "아직 수도가 없습니다. 운영자가 국가 코어를 놓으면 점령할 수 있습니다.")
+            val foreign = Nations.registry.allClaims().filter { it.key.dimension == d && it.value != n.id }.keys.map { Chunk(it.x, it.z) }.toSet()
+            val camp = if (d == "minecraft:overworld") (-CAMP_CHUNK_RADIUS..CAMP_CHUNK_RADIUS).flatMap { x -> (-CAMP_CHUNK_RADIUS..CAMP_CHUNK_RADIUS).map { z -> Chunk(x, z) } }.toSet() else emptySet()
+            val asOutpost = main.none { m -> target.neighbors4().contains(m) } && outposts.none { o -> target.neighbors4().any { it in o } }
+            rules.checkClaim(target, main, outposts, foreign, camp, cap(n), asNewOutpost = asOutpost)?.let { return fail(c, it.message + ".") }
+            Nations.claimAndNotify(n.id, listOf(ChunkKey(d, target.x, target.z)))
+            ok(c, "이 청크를 ${n.name} 영토로 점령했습니다. (${Nations.registry.territory(n.id).size}/${cap(n)})"); return 1
+        }
+        if (me.uuid != n.leader && me.uuid !in n.officers) return fail(c, "영토 해제는 원수와 간부만 할 수 있습니다.")
+        if (capital == null) return fail(c, "우리 땅이 아닙니다.")
+        rules.checkUnclaim(target, capital, main, outposts)?.let { return fail(c, it.message + ".") }
+        Nations.unclaimAndNotify(listOf(ChunkKey(d, target.x, target.z)))
+        ok(c, "이 청크의 점령을 풀었습니다."); return 1
+    }
+
+    private fun playerRelation(c: CommandContext<CommandSourceStack>): Int {
+        val me = c.source.playerOrException
+        val n = Nations.registry.nationOf(me.uuid)?.takeIf { !it.fallen } ?: return fail(c, "국가에 속해 있지 않습니다.")
+        if (n.leader != me.uuid) return fail(c, "관계는 원수만 바꿀 수 있습니다.")
+        val other = nationArg(c)?.takeIf { !it.fallen } ?: return fail(c, "그런 국가가 없습니다.")
+        val want = parseRelation(StringArgumentType.getString(c, "relation")) ?: return fail(c, "관계는 동맹·중립·적대 중 하나입니다.")
+        val now = System.currentTimeMillis()
+        val before = Nations.registry.relation(n.id, other.id, now)
+        val res = Nations.registry.request(n.id, other.id, want, now)
+        val after = Nations.registry.relation(n.id, other.id, now)
+        Nations.notifyRelation(n.id, other.id, before, after)
+        val s = c.source.server
+        when (res) {
+            NationRegistry.RelationResult.SCHEDULED -> broadcast(s, "${n.name}이(가) ${other.name}에 적대를 선언했습니다. 12시간 뒤 발효되며, 그때부터 국가 코어를 공격할 수 있습니다.")
+            NationRegistry.RelationResult.PROPOSED -> other.leader?.let { s.playerList.getPlayer(it) }?.sendSystemMessage(Component.literal("${n.name}이(가) ${relationName(want)}을(를) 제안했습니다. 수락하려면 /n relation ${n.id} ${relationName(want)} 를 입력하십시오."))
+            NationRegistry.RelationResult.OK -> if (before != after) broadcast(s, "${n.name}·${other.name} 관계가 ${relationName(after)}(으)로 바뀌었습니다.")
+            else -> {}
+        }
+        return if (res in setOf(NationRegistry.RelationResult.OK, NationRegistry.RelationResult.PROPOSED, NationRegistry.RelationResult.SCHEDULED)) { ok(c, res.message); 1 } else fail(c, res.message)
+    }
+
+    fun broadcast(s: net.minecraft.server.MinecraftServer, msg: String, rgb: Int = 0xFF7E00) {
+        s.playerList.broadcastSystemMessage(Component.literal(msg).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb))), false)
+    }
+
+    private fun info(c: CommandContext<CommandSourceStack>): Int {
+        val me = c.source.playerOrException
+        val n = Nations.registry.nationOf(me.uuid)?.takeIf { !it.fallen } ?: return fail(c, "국가에 속해 있지 않습니다.")
+        val now = System.currentTimeMillis()
+        val s = c.source.server
+        val leader = n.leader?.let { Nations.nameOf(s, it) } ?: "없음"
+        val rel = Nations.registry.nations.values.filter { it.id != n.id && !it.fallen }.joinToString(", ") { "${it.name} ${relationName(Nations.registry.relation(n.id, it.id, now))}" }
+        val core = n.core?.let { "코어 ${Nations.registry.coreHp(n, now).toInt()} / 100,000" } ?: "코어 없음"
+        me.sendSystemMessage(Component.literal("[${n.name}] 원수 $leader · 국민 ${n.members.size}명 · 영토 ${Nations.registry.territory(n.id).size}/${cap(n)}청크 · $core\n관계: $rel")
+            .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(n.colorRgb))))
+        return 1
+    }
+}

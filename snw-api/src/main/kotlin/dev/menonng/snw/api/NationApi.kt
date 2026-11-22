@@ -20,6 +20,18 @@ interface NationApi {
     fun events(): NationEvents
     fun eventBus(): ServerEventBus
 
+    /** 두 국가의 지금 관계(같은 국가면 ALLIED). */
+    fun relation(a: NationId, b: NationId): Relation = Relation.NEUTRAL
+    /** 국가 코어 위치·체력. 코어가 없으면 null. */
+    fun core(nation: NationId): CoreView? = null
+    /** 블러드문 휴전(zomApo 가 켜고 끈다): 약탈·플레이어의 코어 공격·영토 PvP·방어 구역 PvP 를 막는다. */
+    fun setTruce(active: Boolean, defenseZones: List<CoreView> = emptyList(), radius: Double = 128.0) {}
+    fun truce(): Boolean = false
+    /** 잠수 중인지(5분 입력 없음, 국가 15절). */
+    fun isAfk(player: UUID): Boolean = false
+    /** 영토 상한의 좀비 스코어 항에 쓸 값(zomApo 가 넣는다). */
+    fun setZombieScoreSource(source: (UUID) -> Double) {}
+
     companion object {
         @Volatile
         private var instance: NationApi? = null
@@ -43,6 +55,9 @@ data class ChunkKey(val dimension: String, val x: Int, val z: Int)
 enum class Role { LEADER, OFFICER, CITIZEN }
 
 enum class Relation { NEUTRAL, ALLIED, HOSTILE }
+
+/** 국가 코어(신호기) 위치와 체력. */
+data class CoreView(val nation: NationId, val dimension: String, val x: Int, val y: Int, val z: Int, val hp: Double, val maxHp: Double)
 
 /** 읽기 전용 스냅샷. */
 data class NationView(

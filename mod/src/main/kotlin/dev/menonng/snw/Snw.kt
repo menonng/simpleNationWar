@@ -2,6 +2,8 @@ package dev.menonng.snw
 
 import dev.menonng.snw.chat.ChatRouting
 import dev.menonng.snw.info.InfoMenus
+import dev.menonng.snw.nation.NationCommands
+import dev.menonng.snw.nation.Nations
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import org.slf4j.LoggerFactory
@@ -13,6 +15,8 @@ object Snw : ModInitializer {
     override fun onInitialize() {
         log.info("simpleNationWar 초기화")
         SnwConfig.load()
+        Nations.register()
+        NationCommands.register()
         ChatRouting.register()
         InfoMenus.register()
         ServerLifecycleEvents.SERVER_STARTED.register { server ->

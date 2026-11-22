@@ -28,6 +28,7 @@ internal object Smoke {
         val failures = mutableListOf<String>()
         if (!ChatRouting.commandsRegistered(server)) failures += "/g·/전체 명령 미등록"
         if (!TeamMsgCommandInvoker::class.java.isAssignableFrom(TeamMsgCommand::class.java)) failures += "TeamMsgCommand 믹스인 미적용"
+        failures += nationChecks(server)
 
         // 기본 단계(couriersRoost 의 전체 채팅 처리) 뒤에 도는 탐침. 앞 단계에서 취소되면 불리지 않는다.
         val probe = Identifier.fromNamespaceAndPath(Snw.MOD_ID, "smoke_probe")
@@ -62,6 +63,26 @@ internal object Smoke {
         failures += infoChecks(server)
         Snw.log.info("[simpleNationWar] smoke: couriersRoost={}, 채팅 경로 확인 {}", courier, if (failures.isEmpty()) "통과" else "실패")
         return failures
+    }
+
+    /** 국가: 기본 세 국가와 바닐라 팀, 명령 등록, API 설치, 영토·관계 왕복, 저장. */
+    private fun nationChecks(server: MinecraftServer): List<String> {
+        val f = mutableListOf<String>()
+        val reg = dev.menonng.snw.nation.Nations.registry
+        if (reg.nations.keys.toSet() != setOf("n1", "n2", "n3")) f += "기본 국가 3개가 아님: ${reg.nations.keys}"
+        for (id in reg.nations.keys) if (server.scoreboard.getPlayerTeam("snw_$id")?.isAllowFriendlyFire != true) f += "팀 snw_$id 없음 또는 아군 피해 꺼짐"
+        val root = server.commands.dispatcher.root
+        for (c in listOf("snw", "n", "국가")) if (root.getChild(c) == null) f += "/$c 미등록"
+        val api = dev.menonng.snw.api.NationApi.getOrNull()
+        if (api == null) f += "NationApi 미설치"
+        val k = dev.menonng.snw.api.ChunkKey("minecraft:overworld", 9999, 9999)
+        dev.menonng.snw.nation.Nations.claimAndNotify("n2", listOf(k))
+        if (api?.ownerOf(k)?.id?.value != "n2") f += "영토 점령이 API 에 보이지 않음"
+        dev.menonng.snw.nation.Nations.unclaimAndNotify(listOf(k))
+        if (api?.ownerOf(k) != null) f += "영토 해제가 API 에 보이지 않음"
+        dev.menonng.snw.nation.Nations.save(server)
+        if (!java.nio.file.Files.exists(server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("snw/nations.json"))) f += "nations.json 저장 안 됨"
+        return f
     }
 
     /** Fabric 의 FakePlayer 는 getTeam() 이 늘 null 이라, 실제 플레이어처럼 팀을 돌려주게 한다. */
