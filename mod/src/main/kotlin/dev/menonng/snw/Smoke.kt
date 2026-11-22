@@ -95,9 +95,58 @@ internal object Smoke {
         dev.menonng.snw.protect.Protection.markProtected(pc.uuid, System.currentTimeMillis() + 10_000)
         pa.hurtServer(level, level.damageSources().playerAttack(pc), 5f)
         if (pa.health < before) f += "보호 중인 공격자의 피해가 들어감"
+        f += coreChecks(server, pa, pb, pc)
         for (p in listOf(pa, pb, pc)) reg.assign(p.uuid, null)
         dev.menonng.snw.nation.Nations.save(server)
         if (!java.nio.file.Files.exists(server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("snw/nations.json"))) f += "nations.json 저장 안 됨"
+        return f
+    }
+
+    /** 국가 코어: 구조물·판정, A안·내구도, 공성 시간·적대·보호, 몬스터 폭발, 멸망 이전. 끝나면 상태를 되돌린다. */
+    private fun coreChecks(server: MinecraftServer, pa: FakePlayer, pb: FakePlayer, pc: FakePlayer): List<String> {
+        val f = mutableListOf<String>()
+        val reg = dev.menonng.snw.nation.Nations.registry
+        val snap = reg.snapshot()
+        val level = server.overworld()
+        val pos = net.minecraft.core.BlockPos(6000, 120, 6000)
+        level.getChunk(pos)
+        val core = dev.menonng.snw.core.CoreSystem
+        val n1 = reg.nation("n1")!!
+        core.setCore(level, n1, pos)
+        if (!level.getBlockState(pos).`is`(net.minecraft.world.level.block.Blocks.BEACON)) f += "코어 신호기가 놓이지 않음"
+        if (level.getEntitiesOfClass(net.minecraft.world.entity.Interaction::class.java, net.minecraft.world.phys.AABB(pos).inflate(1.0)).isEmpty()) f += "코어 판정 엔티티 없음"
+        reg.assign(pa.uuid, "n1"); reg.assign(pb.uuid, "n2")  // pc 는 앞 검사에서 보호 중
+        val sword = net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_SWORD)
+        val weapon = dev.menonng.snw.logic.core.NationCore.Weapon.SWORD
+        val siege = dev.menonng.snw.core.SiegeSchedule
+        // 중립이면 0
+        siege.forced = true
+        if (core.playerHit(pb as net.minecraft.server.level.ServerPlayer, n1, weapon, 6.0, 1f, sword) != 0.0) f += "중립 국가가 코어를 깎음"
+        reg.force("n1", "n2", dev.menonng.snw.api.Relation.HOSTILE)
+        Thread.sleep(600)
+        val d0 = sword.damageValue
+        val hit = core.playerHit(pb, n1, weapon, 6.0, 1f, sword)
+        if (hit != 1.0) f += "적대 + 공성 시간 + 쿨다운 찬 검이 빈집 절반 1 이 아님: $hit"   // 가짜 플레이어는 접속자로 세지 않아 빈집
+        if (sword.damageValue - d0 != 2) f += "센 공격 내구도 소모가 2 가 아님: ${sword.damageValue - d0}"
+        val d1 = sword.damageValue
+        if (core.playerHit(pb, n1, weapon, 6.0, 0.3f, sword) != 0.0) f += "덜 찬 공격이 들어감"
+        if (sword.damageValue - d1 != 1) f += "덜 찬 공격 내구도 소모가 1 이 아님"
+        siege.forced = false; Thread.sleep(600)
+        if (core.playerHit(pb, n1, weapon, 6.0, 1f, sword) != 0.0) f += "공성 시간 밖인데 들어감"
+        siege.forced = true; Thread.sleep(600)
+        // 몬스터 폭발은 시간과 상관없이 2(빈집이면 1: pa 는 FakePlayer 라 접속자로 안 셈)
+        val hp0 = reg.coreHp(n1, System.currentTimeMillis())
+        core.onExplosion(level, net.minecraft.world.phys.Vec3(6000.5, 121.0, 6000.5), 3f, null)
+        if (reg.coreHp(n1, System.currentTimeMillis()) >= hp0) f += "폭발이 코어를 깎지 않음"
+        // 멸망: 체력 2 → 막타 국가로 국민 이전
+        n1.coreHp = 1.0; n1.coreHpAtLastHit = 1.0; n1.coreLastHit = System.currentTimeMillis()
+        core.playerHit(pb, n1, weapon, 6.0, 1f, sword)
+        if (!n1.fallen) f += "코어 0 인데 멸망하지 않음"
+        if (reg.nationOf(pa.uuid)?.id != "n2") f += "멸망한 국가 국민이 막타 국가로 옮겨지지 않음: ${reg.nationOf(pa.uuid)?.id}"
+        if (level.getBlockState(pos).`is`(net.minecraft.world.level.block.Blocks.BEACON)) f += "멸망 뒤 코어가 남음"
+        siege.forced = null
+        reg.restore(snap)
+        dev.menonng.snw.nation.Nations.syncTeams(server)
         return f
     }
 

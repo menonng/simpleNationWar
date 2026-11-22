@@ -18,6 +18,7 @@ object Snw : ModInitializer {
         Nations.register()
         NationCommands.register()
         dev.menonng.snw.protect.Protection.register()
+        dev.menonng.snw.core.CoreSystem.register()
         ChatRouting.register()
         InfoMenus.register()
         ServerLifecycleEvents.SERVER_STARTED.register { server ->

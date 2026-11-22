@@ -96,6 +96,28 @@ object NationCommands {
                         .then(Commands.argument("radius", IntegerArgumentType.integer(0, 8)).executes { claimArea(it, true, IntegerArgumentType.getInteger(it, "radius")) }))
                     .then(Commands.literal("remove").executes { claimArea(it, false, 0) }
                         .then(Commands.argument("radius", IntegerArgumentType.integer(0, 8)).executes { claimArea(it, false, IntegerArgumentType.getInteger(it, "radius")) }))))
+                .then(Commands.literal("core").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
+                    .then(Commands.literal("set").executes { c ->
+                        val n = nationArg(c) ?: return@executes fail(c, "그런 국가가 없습니다.")
+                        val pos = net.minecraft.core.BlockPos.containing(c.source.position)
+                        dev.menonng.snw.core.CoreSystem.setCore(c.source.level, n, pos)
+                        ok(c, "${n.name}의 국가 코어를 놓았습니다. 그 청크가 수도가 됩니다."); 1
+                    })
+                    .then(Commands.literal("hp").then(Commands.argument("value", IntegerArgumentType.integer(1, 100_000)).executes { c ->
+                        val n = nationArg(c) ?: return@executes fail(c, "그런 국가가 없습니다.")
+                        val v = IntegerArgumentType.getInteger(c, "value").toDouble()
+                        n.coreHp = v; n.coreHpAtLastHit = v; n.coreLastHit = System.currentTimeMillis(); Nations.markDirty()
+                        ok(c, "${n.name} 코어 체력을 ${v.toInt()}(으)로 맞췄습니다."); 1
+                    }))))
+                .then(Commands.literal("siege")
+                    .then(Commands.literal("open").executes { c -> dev.menonng.snw.core.SiegeSchedule.forced = true; ok(c, "공성 시간을 수동으로 열었습니다(/snw siege auto 로 되돌립니다)."); 1 })
+                    .then(Commands.literal("close").executes { c -> dev.menonng.snw.core.SiegeSchedule.forced = false; ok(c, "공성 시간을 수동으로 닫았습니다."); 1 })
+                    .then(Commands.literal("auto").executes { c -> dev.menonng.snw.core.SiegeSchedule.forced = null; ok(c, "공성 시간을 자동으로 되돌렸습니다."); 1 })
+                    .executes { c ->
+                    val st = dev.menonng.snw.core.SiegeSchedule
+                    val (wd, we) = st.windows()
+                    ok(c, "공성 시간: 평일 ${wd.label}, 주말 ${we.label}. 오늘 ${st.todayLabel()}${if (st.isOpen()) " (지금 열림)" else ""}. 조사한 날 ${st.state.samples.size}일"); 1
+                })
                 .then(Commands.literal("relation").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
                     .then(Commands.argument("other", StringArgumentType.word()).suggests(nationIds)
                         .then(Commands.argument("relation", StringArgumentType.word()).suggests(relationWords).executes { c ->

@@ -460,6 +460,10 @@ couriersRoost 의 `/birds`, `/birdtrack` 은 운영자 권한 명령이다(일�
 | `/snw transfer open <시간>` | 이적 창 열기 |
 | `/snw claim <국가> add\|remove [반경]` | 영토 수동 조정 |
 | `/snw relation <국가> <국가> <중립\|동맹\|적대>` | 관계 강제 설정 |
+| `/snw core <국가> set` | 그 자리에 국가 코어(신호기 + 아래 철 블록 3×3 + 위 국가 색 유리)를 놓는다. 그 청크가 수도가 된다 |
+| `/snw core <국가> hp <값>` | 코어 체력 수동 조정(사고 처리용) |
+| `/snw siege` / `open` / `close` / `auto` | 공성 시간대 보기, 수동으로 열기·닫기, 자동으로 되돌리기 |
+| `/snw status` · `/snw save` | 국가·영토·코어·관계 요약, 즉시 저장 |
 | `/snw landmark <거점> owner <국가\|없음>` | 거점 소유 지정 |
 | `/snw war window start\|stop` | 거점전 시간 수동 시작·종료 |
 | `/snw stats <플레이어> reset` | 통계 초기화(사고 처리용) |
