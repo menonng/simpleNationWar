@@ -153,6 +153,8 @@ internal object Smoke {
     /** Fabric 의 FakePlayer 는 getTeam() 이 늘 null 이라, 실제 플레이어처럼 팀을 돌려주게 한다. */
     private class SmokePlayer(level: ServerLevel, name: String = "snw_smoke") : FakePlayer(level, GameProfile(UUID.nameUUIDFromBytes(name.toByteArray()), name)) {
         override fun getTeam(): PlayerTeam? = level().scoreboard.getPlayersTeam(scoreboardName)
+        /** Fabric FakePlayer 는 모든 피해를 무시하므로, 보호 규칙 검사가 헛돌지 않게 실제로 피해를 받게 한다. */
+        override fun isInvulnerableTo(level: ServerLevel, source: net.minecraft.world.damagesource.DamageSource): Boolean = false
     }
 
     private fun chat(server: MinecraftServer, player: FakePlayer, text: String) {
