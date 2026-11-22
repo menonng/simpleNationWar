@@ -50,7 +50,9 @@ object Nations : NationApi {
 
     fun register() {
         NationApi.install(this)
-        ServerLifecycleEvents.SERVER_STARTED.register { s -> server = s; load(s); syncTeams(s) }
+        // 다른 모드(zomApo)가 SERVER_STARTED 에서 바로 읽을 수 있게 데이터는 시작 전에 읽는다. 팀은 스코어보드가 생긴 뒤에.
+        ServerLifecycleEvents.SERVER_STARTING.register { s -> server = s; load(s) }
+        ServerLifecycleEvents.SERVER_STARTED.register { s -> syncTeams(s) }
         ServerLifecycleEvents.SERVER_STOPPING.register { s -> save(s) }
         ServerPlayConnectionEvents.JOIN.register { h, _, s -> syncPlayer(s, h.player) }
         ServerTickEvents.END_SERVER_TICK.register { s ->
