@@ -80,13 +80,29 @@ internal object Smoke {
         if (api?.ownerOf(k)?.id?.value != "n2") f += "영토 점령이 API 에 보이지 않음"
         dev.menonng.snw.nation.Nations.unclaimAndNotify(listOf(k))
         if (api?.ownerOf(k) != null) f += "영토 해제가 API 에 보이지 않음"
+        // 같은 국가에게 치명타 → 그 자리 부활, 동맹은 피해 없음
+        val level = server.overworld()
+        val pa = SmokePlayer(level, "snw_smoke_a"); val pb = SmokePlayer(level, "snw_smoke_b"); val pc = SmokePlayer(level, "snw_smoke_c")
+        for (p in listOf(pa, pb, pc)) { p.snapTo(5000.0, 100.0, 5000.0, 0f, 0f) }
+        reg.assign(pa.uuid, "n1"); reg.assign(pb.uuid, "n1"); reg.assign(pc.uuid, "n3")
+        reg.force("n1", "n3", dev.menonng.snw.api.Relation.ALLIED)
+        pa.hurtServer(level, level.damageSources().playerAttack(pb), 1000f)
+        if (!pa.isAlive || pa.health < pa.maxHealth) f += "같은 국가 사망이 그 자리 부활로 처리되지 않음(체력 ${pa.health})"
+        val before = pa.health
+        pa.hurtServer(level, level.damageSources().playerAttack(pc), 5f)
+        if (pa.health < before) f += "동맹에게 피해를 받음"
+        reg.force("n1", "n3", dev.menonng.snw.api.Relation.NEUTRAL)
+        dev.menonng.snw.protect.Protection.markProtected(pc.uuid, System.currentTimeMillis() + 10_000)
+        pa.hurtServer(level, level.damageSources().playerAttack(pc), 5f)
+        if (pa.health < before) f += "보호 중인 공격자의 피해가 들어감"
+        for (p in listOf(pa, pb, pc)) reg.assign(p.uuid, null)
         dev.menonng.snw.nation.Nations.save(server)
         if (!java.nio.file.Files.exists(server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("snw/nations.json"))) f += "nations.json 저장 안 됨"
         return f
     }
 
     /** Fabric 의 FakePlayer 는 getTeam() 이 늘 null 이라, 실제 플레이어처럼 팀을 돌려주게 한다. */
-    private class SmokePlayer(level: ServerLevel) : FakePlayer(level, GameProfile(UUID.nameUUIDFromBytes("snw-smoke".toByteArray()), "snw_smoke")) {
+    private class SmokePlayer(level: ServerLevel, name: String = "snw_smoke") : FakePlayer(level, GameProfile(UUID.nameUUIDFromBytes(name.toByteArray()), name)) {
         override fun getTeam(): PlayerTeam? = level().scoreboard.getPlayersTeam(scoreboardName)
     }
 

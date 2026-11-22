@@ -203,6 +203,9 @@ object Nations : NationApi {
     var afkCheck: (UUID) -> Boolean = { false }
     override fun isAfk(player: UUID): Boolean = afkCheck(player)
 
+    override fun markProtected(player: UUID, untilEpochMillis: Long) = dev.menonng.snw.protect.Protection.markProtected(player, untilEpochMillis)
+    override fun grantJoinProtection(player: UUID): Boolean = dev.menonng.snw.protect.Protection.combat.grantJoinProtection(player)
+
     var zombieScore: (UUID) -> Double = { 0.0 }
         private set
     override fun setZombieScoreSource(source: (UUID) -> Double) { zombieScore = source }
