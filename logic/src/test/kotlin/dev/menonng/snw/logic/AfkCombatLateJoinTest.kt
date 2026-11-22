@@ -43,7 +43,9 @@ class AfkCombatLateJoinTest {
         assertFalse(u.isActiveMember(b, s))
         assertEquals(5 * min, u.activeMillis(b, s)) // 처음 5분만 쌓이고 그 뒤로는 잠수
         // 72시간이 지나면 빠진다
-        assertFalse(u.isActiveMember(a, s + 73 * 60 * min))
+        assertFalse(u.isActiveMember(a, s + 73 * 60 * min, AfkTracker.TRANSFER_HOURS))   // 이적 창: 72시간
+        assertTrue(u.isActiveMember(a, s + 73 * 60 * min))                               // 감염도: 최근 7일
+        assertFalse(u.isActiveMember(a, s + 169 * 60 * min))
     }
 
     @Test
