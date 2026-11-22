@@ -18,19 +18,19 @@ class NicknameValidator(
     enum class Verdict { ACCEPT, REVIEW, REJECT }
 
     enum class Reason(val message: String) {
-        LENGTH("2~10자로 정해 주세요"),
-        CHARSET("한글(완성형), 영문, 숫자, 밑줄만 쓸 수 있어요"),
-        DUPLICATE("이미 누가 쓰고 있어요"),
-        MC_NAME_CLASH("다른 사람의 마인크래프트 이름과 같아요"),
-        BANNED("쓸 수 없는 낱말이 들어 있어요"),
-        LONG_DIGITS("숫자를 4자리 이상 이어 쓸 수 없어요(전화번호·생년월일 보호)"),
-        TOO_MANY_DIGITS("숫자는 2개까지만 쓸 수 있어요"),
-        CONTACT("연락처·계정을 떠올리게 하는 낱말은 쓸 수 없어요"),
-        SCHOOL("학교·학년·반 표기는 쓸 수 없어요"),
-        BIRTH_YEAR("출생연도처럼 보이는 숫자가 있어요"),
-        REAL_NAME("실명처럼 보여요"),
-        REAL_NAME_ROMAN("실명을 영문으로 쓴 것처럼 보여요"),
-        REGION("사는 곳을 떠올리게 하는 표기가 있어요"),
+        LENGTH("2~10자로 정해 주십시오"),
+        CHARSET("한글(완성형), 영문, 숫자, 밑줄만 쓸 수 있습니다"),
+        DUPLICATE("이미 다른 사람이 쓰고 있습니다"),
+        MC_NAME_CLASH("다른 사람의 마인크래프트 이름과 같습니다"),
+        BANNED("쓸 수 없는 낱말이 들어 있습니다"),
+        LONG_DIGITS("숫자를 4자리 이상 이어 쓸 수 없습니다(전화번호·생년월일 보호)"),
+        TOO_MANY_DIGITS("숫자는 2개까지만 쓸 수 있습니다"),
+        CONTACT("연락처·계정을 떠올리게 하는 낱말은 쓸 수 없습니다"),
+        SCHOOL("학교·학년·반 표기는 쓸 수 없습니다"),
+        BIRTH_YEAR("출생연도처럼 보이는 숫자가 있습니다"),
+        REAL_NAME("실명처럼 보입니다"),
+        REAL_NAME_ROMAN("실명을 영문으로 쓴 것처럼 보입니다"),
+        REGION("사는 곳을 떠올리게 하는 표기가 있습니다"),
     }
 
     data class Result(val verdict: Verdict, val reasons: List<Reason>, val normalized: String)

@@ -59,7 +59,7 @@ object ChatRouting {
         ServerPlayConnectionEvents.JOIN.register { handler, _, _ ->
             val player = handler.player
             if (SnwConfig.chatDefault == ChatChannel.TEAM && player.team != null) {
-                player.sendSystemMessage(hint("채팅은 국가 채팅으로 나가요. 전체 채팅은 /g <메시지>"))
+                player.sendSystemMessage(hint("채팅은 국가 채팅으로 나갑니다. 전체 채팅은 /g <메시지>를 쓰십시오."))
             }
         }
         ServerPlayConnectionEvents.DISCONNECT.register { handler, _ -> aloneHint.forget(handler.player.uuid) }
@@ -80,7 +80,7 @@ object ChatRouting {
         // 바닐라 /teammsg 와 같은 수신자: 보낸 사람 + 같은 팀 접속자
         val receivers = sender.level().server.playerList.players.filter { it === sender || it.team === team }
         if (aloneHint.shouldShow(sender.uuid, receivers.size - 1, System.currentTimeMillis())) {
-            sender.sendSystemMessage(hint("지금 접속한 국민이 없어요. 전체 채팅은 /g <메시지>"))
+            sender.sendSystemMessage(hint("지금 접속한 국민이 없습니다. 전체 채팅은 /g <메시지>를 쓰십시오."))
         }
         TeamMsgCommandInvoker.snwSendTeamMessage(sender.createCommandSourceStack(), sender, team, receivers, message)
         return false

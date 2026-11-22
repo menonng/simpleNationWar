@@ -23,20 +23,20 @@ data class TerritoryConfig(
 )
 
 enum class ClaimDenied(val message: String) {
-    ALREADY_OWNED("이미 누군가의 땅이에요"),
-    FORBIDDEN_ZONE("생존자 캠프나 거점 구역은 점령할 수 없어요"),
-    CAP_REACHED("영토 상한에 도달했어요"),
-    NOT_ADJACENT("기존 영토와 맞닿아 있어야 해요"),
-    TOO_CLOSE_TO_FOREIGN("다른 국가 영토와 2청크 이상 떨어져야 해요"),
-    OUTPOST_LIMIT("전초기지는 2개까지예요"),
-    OUTPOST_TOO_BIG("전초기지는 4청크까지예요"),
-    OUTPOST_TOO_CLOSE("전초기지는 다른 국가 영토와 8청크 이상 떨어져야 해요"),
+    ALREADY_OWNED("이미 누군가의 땅입니다"),
+    FORBIDDEN_ZONE("생존자 캠프나 거점 구역은 점령할 수 없습니다"),
+    CAP_REACHED("영토 상한에 도달했습니다"),
+    NOT_ADJACENT("기존 영토와 맞닿아 있어야 합니다"),
+    TOO_CLOSE_TO_FOREIGN("다른 국가 영토와 2청크 이상 떨어져야 합니다"),
+    OUTPOST_LIMIT("전초기지는 2개까지입니다"),
+    OUTPOST_TOO_BIG("전초기지는 4청크까지입니다"),
+    OUTPOST_TOO_CLOSE("전초기지는 다른 국가 영토와 8청크 이상 떨어져야 합니다"),
 }
 
 enum class UnclaimDenied(val message: String) {
-    NOT_OURS("우리 땅이 아니에요"),
-    CAPITAL("수도 청크는 해제할 수 없어요"),
-    SPLITS_TERRITORY("해제하면 영토가 수도와 끊어져요"),
+    NOT_OURS("우리 땅이 아닙니다"),
+    CAPITAL("수도 청크는 해제할 수 없습니다"),
+    SPLITS_TERRITORY("해제하면 영토가 수도와 끊어집니다"),
 }
 
 /**

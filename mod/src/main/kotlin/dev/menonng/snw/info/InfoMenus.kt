@@ -93,7 +93,7 @@ object InfoMenus {
         val name = StringArgumentType.getString(ctx, "player")
         val entry = entries(ctx.source.server).firstOrNull { it.name.equals(name, ignoreCase = true) }
         if (entry == null) {
-            ctx.source.sendFailure(Component.literal("그런 플레이어가 없다: $name"))
+            ctx.source.sendFailure(Component.literal("그런 플레이어가 없습니다: $name"))
             return 0
         }
         openProfile(viewer, entry, null)
@@ -297,7 +297,7 @@ object InfoMenus {
             gray("합계 ${hours(s.playTicks)}"),
         ) + extra("시간")))
         val titles = extra("칭호")
-        container.setItem(33, item(Items.NAME_TAG, text("칭호", PINK), titles.ifEmpty { listOf(gray("아직 칭호가 없다")) }))
+        container.setItem(33, item(Items.NAME_TAG, text("칭호", PINK), titles.ifEmpty { listOf(gray("아직 칭호가 없습니다")) }))
 
         container.setItem(45, item(Items.ARROW, text("◀ 목록")))
         actions[45] = { p -> openList(p, back ?: ListState()) }
