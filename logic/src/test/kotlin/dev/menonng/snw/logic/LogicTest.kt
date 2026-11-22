@@ -194,9 +194,9 @@ class TerritoryTest {
     @Test
     @DisplayName("영토 상한 예시")
     fun case01() {
-        assertEquals(54, rules.cap(5, 0.0, 0))
-        assertEquals(79, rules.cap(5, 2500.0, 0))
-        assertEquals(112, rules.cap(5, 10_000.0, 1))
+        assertEquals(66, rules.cap(7, 0.0, 0))
+        assertEquals(89, rules.cap(7, 5150.0, 0))
+        assertEquals(121, rules.cap(7, 20_600.0, 1))
     }
 
     @Test

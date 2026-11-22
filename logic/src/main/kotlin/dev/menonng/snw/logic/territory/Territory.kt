@@ -45,8 +45,9 @@ enum class UnclaimDenied(val message: String) {
  */
 class TerritoryRules(val config: TerritoryConfig = TerritoryConfig()) {
 
+    /** 스코어 항 ÷3: 2026-11-22 인원 상향(국가당 약 7명, 스코어 합 약 2배)에 맞춰 ÷2 에서 올렸다. */
     fun cap(members: Int, nationZombieScore: Double, landmarks: Int): Int =
-        config.baseCap + config.perMember * members + floor(sqrt(max(0.0, nationZombieScore)) / 2).toInt() + config.perLandmark * landmarks
+        config.baseCap + config.perMember * members + floor(sqrt(max(0.0, nationZombieScore)) / 3).toInt() + config.perLandmark * landmarks
 
     fun checkClaim(
         target: Chunk,
