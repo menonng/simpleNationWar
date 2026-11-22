@@ -21,6 +21,9 @@ class NationCoreTest {
         assertEquals(0.0, NationCore.damage(9.0, Attacker.OWN, 1))
         assertEquals(0.0, NationCore.damage(9.0, Attacker.HOSTILE, 1, truce = true))
         assertEquals(2.0, NationCore.damage(9.0, Attacker.MOB, 1, truce = true))
+        assertEquals(0.0, NationCore.damage(9.0, Attacker.HOSTILE, 1, siegeOpen = false))
+        assertEquals(0.0, NationCore.damage(9.0, Attacker.HOSTILE, 1, attackerProtected = true))
+        assertEquals(2.0, NationCore.damage(9.0, Attacker.MOB, 0, siegeOpen = false) * 2)
     }
 
     @Test

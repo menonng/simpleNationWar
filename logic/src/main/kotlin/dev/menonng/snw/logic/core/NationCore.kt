@@ -5,6 +5,7 @@ package dev.menonng.snw.logic.core
  * - 체력 100,000, 공격 한 번에 최대 2. 적대 국가 플레이어와 몬스터만 깎는다.
  * - 빈집: 자국민이 아무도 접속해 있지 않으면 피해 절반(몬스터 포함).
  * - 회복: 마지막으로 맞은 뒤 2시간이 지나면 시간당 10. 수리 없음.
+ * - 공성 시간대(SiegeWindow) 밖, 블러드문 휴전 중, 공격자가 접속·부활 보호 중이면 플레이어 피해 0. 몬스터는 늘 깎는다.
  * - 세는 공격(A안): 쿨다운 90% 이상 찬 무기 공격만, 같은 플레이어는 0.5초에 한 번. 맨손·다른 물건은 0.
  * - 무기 내구도: 칠 때마다 반드시 닳는다(센 공격 2, 덜 찬 공격 1, 내구성 인첸트 무시).
  */
@@ -51,11 +52,15 @@ object NationCore {
     /** 무기 한 자루로 깎을 수 있는 코어 체력(빈집이 아니고 매번 센 공격일 때). 철 검 250, 네더라이트 2,031. */
     fun hpPerWeapon(durability: Int): Double = (durability / DURABILITY_COUNTED) * MAX_HIT
 
-    /** 한 번의 공격이 코어에 주는 피해. [truce] = 블러드문 휴전(플레이어의 코어 공격 금지, 몬스터는 그대로). */
-    fun damage(raw: Double, attacker: Attacker, ownersOnline: Int, truce: Boolean = false): Double {
+    /**
+     * 한 번의 공격이 코어에 주는 피해. [truce] = 블러드문 휴전, [siegeOpen] = 공성 시간대(5-1-2),
+     * [attackerProtected] = 공격자가 접속·부활 직후 보호(무적) 중. 셋은 플레이어에게만 걸고, 몬스터는 그대로.
+     */
+    fun damage(raw: Double, attacker: Attacker, ownersOnline: Int, truce: Boolean = false,
+               siegeOpen: Boolean = true, attackerProtected: Boolean = false): Double {
         val allowed = when (attacker) {
             Attacker.MOB -> true
-            Attacker.HOSTILE -> !truce
+            Attacker.HOSTILE -> !truce && siegeOpen && !attackerProtected
             else -> false
         }
         if (!allowed || raw <= 0.0) return 0.0
