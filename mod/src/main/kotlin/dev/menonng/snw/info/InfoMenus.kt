@@ -72,7 +72,27 @@ object InfoMenus {
     /** 다른 모드가 정보 창 칸에 줄을 더한다(`snw:stat_provider`). 키 = 칸 이름("좀비", "생존" 등). */
     val extraLines: MutableList<(UUID, String) -> List<Component>> = mutableListOf()
 
+    /** 다른 모드의 통계 제공자(엔트리포인트 snw:stat_provider). 라벨 '칭호' 줄은 칭호 칸으로, 나머지는 '좀비' 칸으로, 국민 목록에는 앞의 두 줄. */
+    val providers: List<dev.menonng.snw.api.StatProvider> by lazy {
+        runCatching { net.fabricmc.loader.api.FabricLoader.getInstance().getEntrypoints("snw:stat_provider", dev.menonng.snw.api.StatProvider::class.java) }.getOrDefault(emptyList())
+    }
+
+    fun titles(id: UUID): List<String> = providers.flatMap { p -> runCatching { p.lines(id, null) }.getOrDefault(emptyList()) }.filter { it.label == "칭호" }.map { it.value }
+
+    fun registerProviders() {
+        extraLines += { id, section ->
+            val lines = providers.flatMap { p -> runCatching { p.lines(id, null) }.getOrDefault(emptyList()) }
+            when (section) {
+                "좀비" -> lines.filter { it.label != "칭호" }.map { gray("${it.label} ${it.value}") }
+                "국민" -> lines.filter { it.label != "칭호" }.take(2).map { gray("${it.label} ${it.value}") }
+                "칭호" -> lines.filter { it.label == "칭호" }.map { text(it.value, PINK) }
+                else -> emptyList()
+            }
+        }
+    }
+
     fun register() {
+        registerProviders()
         CommandRegistrationCallback.EVENT.register { dispatcher, _, _ ->
             dispatcher.register(command("info"))
             dispatcher.register(command("정보"))

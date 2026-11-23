@@ -96,7 +96,12 @@ object Nicknames {
     @JvmStatic
     fun tabName(p: ServerPlayer, base: Component?): Component? {
         val nick = get(p.uuid)
-        val named = if (nick != null) (p.team?.getFormattedName(Component.literal(nick)) ?: Component.literal(nick)) else base
+        var named = if (nick != null) (p.team?.getFormattedName(Component.literal(nick)) ?: Component.literal(nick)) else base
+        // 칭호가 있으면 이름 앞에(nickname.md 2절 '칭호'): 분홍 #FFB4CC
+        dev.menonng.snw.info.InfoMenus.titles(p.uuid).firstOrNull()?.let { t ->
+            val n0 = named ?: (p.team?.getFormattedName(p.name) ?: p.name.copy())
+            named = Component.literal("$t ").withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(net.minecraft.network.chat.TextColor.fromRgb(0xFFB4CC))).append(n0)
+        }
         return Protection.tabName(p, named)
     }
 
