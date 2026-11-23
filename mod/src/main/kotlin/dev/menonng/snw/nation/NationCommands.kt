@@ -182,6 +182,9 @@ object NationCommands {
                 .then(Commands.literal("nickname").then(Commands.argument("nick", StringArgumentType.word()).executes { c ->
                     ok(c, dev.menonng.snw.nickname.Nicknames.request(c.source.playerOrException, StringArgumentType.getString(c, "nick"))); 1
                 }))
+                .then(Commands.literal("research").then(Commands.literal("consent").executes { c ->
+                    ok(c, dev.menonng.snw.project.VaccineBoard.toggleConsent(c.source.playerOrException)); 1
+                }))
                 .then(Commands.literal("choose").executes { c -> dev.menonng.snw.season.Season.openChooser(c.source.playerOrException); 1 })
                 .then(Commands.literal("capital").then(Commands.literal("move").executes { c ->
                     val r = dev.menonng.snw.season.Season.moveCapital(c.source.playerOrException)
@@ -281,13 +284,22 @@ object NationCommands {
             val asOutpost = main.none { m -> target.neighbors4().contains(m) } && outposts.none { o -> target.neighbors4().any { it in o } }
             rules.checkClaim(target, main, outposts, foreign, forbidden(d), cap(n), asNewOutpost = asOutpost)?.let { return false to it.message + "." }
             Nations.claimAndNotify(n.id, listOf(ChunkKey(d, target.x, target.z)))
+            tellNation(me, n, "${dev.menonng.snw.nickname.Nicknames.get(me.uuid) ?: me.scoreboardName}님이 청크(${target.x}, ${target.z})를 점령했습니다.")
             return true to "${n.name} 영토로 점령했습니다. (${Nations.registry.territory(n.id).size}/${cap(n)})"
         }
         if (me.uuid != dev.menonng.snw.season.Season.effectiveLeader(n) && me.uuid !in n.officers) return false to "영토 해제는 원수와 간부만 할 수 있습니다."
         if (capital == null) return false to "우리 땅이 아닙니다."
         rules.checkUnclaim(target, capital, main, outposts)?.let { return false to it.message + "." }
         Nations.unclaimAndNotify(listOf(ChunkKey(d, target.x, target.z)))
+        tellNation(me, n, "${dev.menonng.snw.nickname.Nicknames.get(me.uuid) ?: me.scoreboardName}님이 청크(${target.x}, ${target.z}) 점령을 풀었습니다.")
         return true to "점령을 풀었습니다."
+    }
+
+    /** 국민 채팅 1줄(13절). 본인 말고 접속 중인 국민에게. */
+    private fun tellNation(me: net.minecraft.server.level.ServerPlayer, n: NationRegistry.Nation, msg: String) {
+        val s = me.level().server
+        for (m in n.members) if (m != me.uuid) s.playerList.getPlayer(m)?.sendSystemMessage(Component.literal(msg).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(n.colorRgb))))
+        Nations.publish("territory_changed", mapOf("nation" to n.name))
     }
 
     /** 점령할 수 없는 청크: 생존자 캠프, 거점 구역(거점전 모듈이 채운다). */

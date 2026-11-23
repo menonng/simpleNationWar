@@ -11,7 +11,8 @@
     "FireTerritoryMixin",
     "InteractionAccessor",
     "TabListAfkMixin",
-    "TeamMsgCommandInvoker"
+    "TeamMsgCommandInvoker",
+    "VillagerBreedMixin"
   ],
   "injectors": {
     "defaultRequire": 1

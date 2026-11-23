@@ -143,6 +143,14 @@ object Treasury {
                 if (d != 0) log += LogEntry(System.currentTimeMillis(), who, k, d)
             }
             while (log.size > 200) log.removeAt(0)
+            val out = before.keys.sumOf { k -> ((before[k] ?: 0) - (after[k] ?: 0)).coerceAtLeast(0) }
+            if (out >= dev.menonng.snw.SnwConfig.treasuryBulkWithdraw) Nations.registry.nation(nation)?.let { n ->
+                val s = (player as ServerPlayer).level().server
+                val who2 = dev.menonng.snw.nickname.Nicknames.get(player.uuid) ?: player.scoreboardName
+                for (m in n.officers + listOfNotNull(dev.menonng.snw.season.Season.effectiveLeader(n))) if (m != player.uuid)
+                    s.playerList.getPlayer(m)?.sendSystemMessage(Gui.text("$who2 님이 국고에서 아이템 ${out}개를 꺼냈습니다.", Gui.rgb(0xFF7E00)))
+                Nations.publish("treasury_bulk_withdraw", mapOf("nation" to n.name, "count" to out))
+            }
             (player as ServerPlayer).level().server.let { save(it) }
         }
 

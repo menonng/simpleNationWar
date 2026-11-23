@@ -144,6 +144,26 @@ internal object Smoke {
         if (dev.menonng.snw.nation.NationCommands.cap(reg.nation("n1")!!) != capBefore + 8) f += "거점 소유가 영토 상한 +8 이 아님"
         if (!level.getBlockState(lpos).`is`(net.minecraft.world.level.block.Blocks.CHEST)) f += "거점 보상 상자가 없음"
         lm.state.landmarks.remove("smoke_lm"); level.setBlockAndUpdate(lpos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()); lm.save(server)
+        // 백신 조각: 사건이 오면 국가별로 세고 국고 칸이 열린다
+        reg.assign(pb.uuid, "n2")
+        val vb = dev.menonng.snw.project.VaccineBoard
+        val before2 = vb.byNation("n2"); val slots = dev.menonng.snw.nation.Treasury.unlocked("n2")
+        vb.onShard(server, pb.uuid)
+        if (vb.byNation("n2") != before2 + 1) f += "백신 조각이 국가별로 세어지지 않음"
+        if ("vaccine" !in dev.menonng.snw.nation.Treasury.discoveries("n2")) f += "백신 조각 확보가 국고 해금 발견으로 남지 않음"
+        vb.state.finds.removeIf { it.player == pb.uuid.toString() }; vb.save(server)
+        // 주민 상한: 영토 안 22명이면 2명이 피난민
+        val vk = dev.menonng.snw.api.ChunkKey("minecraft:overworld", 9100 shr 4, 9100 shr 4)
+        dev.menonng.snw.nation.Nations.claimAndNotify("n3", listOf(vk))
+        val vpos = net.minecraft.core.BlockPos(9100, 120, 9100); level.setChunkForced(9100 shr 4, 9100 shr 4, true); level.getChunk(vpos)
+        val vs = (1..22).map { net.minecraft.world.entity.EntityTypes.VILLAGER.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND)!!.also { v -> v.snapTo(9096.5, 120.0, 9096.5, 0f, 0f); level.addFreshEntity(v) } }
+        dev.menonng.snw.project.Villagers.recountWith(vs)
+        val refugees = vs.count { dev.menonng.snw.project.Villagers.isRefugee(it) }
+        if (refugees != 2) f += "주민 22명 중 피난민이 2명이 아님: $refugees"
+        vs.forEach { it.discard() }
+        level.setChunkForced(9100 shr 4, 9100 shr 4, false)
+        dev.menonng.snw.project.Villagers.state.entered.remove("n3")
+        dev.menonng.snw.nation.Nations.unclaimAndNotify(listOf(vk))
         for (c in listOf("season", "transfer", "nickname", "landmark", "war")) if (root.getChild("snw")?.getChild(c) == null) f += "/snw $c 미등록"
         for (c in listOf("choose", "capital", "transfer")) if (root.getChild("n")?.getChild(c) == null) f += "/n $c 미등록"
         for (p in listOf(pa, pb, pc)) reg.assign(p.uuid, null)

@@ -64,6 +64,7 @@ object NationGui {
             Gui.gray("원수 $leader · 국민 ${n.members.size}명"),
             Gui.gray("영토 ${Nations.registry.territory(n.id).size} / ${NationCommands.cap(n)}"),
             Gui.gray(core),
+            Gui.gray(dev.menonng.snw.project.Villagers.summary(n.id)),
             lv?.let { Gui.gray("지금 이곳 감염 Lv$it") },
             Gui.gray("오늘 공성 시간 ${dev.menonng.snw.core.SiegeSchedule.todayLabel(now)}"),
         ), hide = setOf(DataComponents.BANNER_PATTERNS)))

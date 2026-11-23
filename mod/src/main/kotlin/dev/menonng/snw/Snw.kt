@@ -23,6 +23,8 @@ object Snw : ModInitializer {
         dev.menonng.snw.nickname.Nicknames.register()
         dev.menonng.snw.nation.Treasury.register()
         dev.menonng.snw.landmark.Landmarks.register()
+        dev.menonng.snw.project.Villagers.register()
+        dev.menonng.snw.project.VaccineBoard.register()
         ChatRouting.register()
         InfoMenus.register()
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
