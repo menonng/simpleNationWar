@@ -28,6 +28,7 @@ object Snw : ModInitializer {
         ChatRouting.register()
         InfoMenus.register()
         dev.menonng.snw.map.HandheldMap.register()
+        dev.menonng.snw.discord.DiscordLink.register()
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
             if (System.getProperty("snw.smoke") == "true") {
                 val failures = Smoke.run(server)

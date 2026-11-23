@@ -16,4 +16,5 @@ rootProject.name = "snw"
 // logic:   순수 Kotlin 규칙 (닉네임 검사, K/D/A 판정, 영토 규칙, 다각형 병합).
 // diary:   생존일지 생성기 (규칙 기반 문장 생성). 디스코드 봇이 쓴다.
 // mod:     Fabric 서버 모드.
-include(":snw-api", ":logic", ":diary", ":mod")
+// discord-bot: 디스코드 봇(별도 프로세스). JDA + 내장 WebSocket 서버 + SQLite.
+include(":snw-api", ":logic", ":diary", ":mod", ":discord-bot")
