@@ -100,6 +100,7 @@ internal object Smoke {
         pa.hurtServer(level, level.damageSources().playerAttack(pc), 5f)
         if (pa.health < before) f += "보호 중인 공격자의 피해가 들어감"
         f += coreChecks(server, pa, pb, pc)
+        f += mapChecks(server, pa)
         season.started = false
         val hp0 = pa.health; pa.hurtServer(level, level.damageSources().generic(), 3f)
         if (pa.health < hp0) f += "시즌 전인데 피해를 받음"
@@ -221,6 +222,34 @@ internal object Smoke {
     }
 
     /** Fabric 의 FakePlayer 는 getTeam() 이 늘 null 이라, 실제 플레이어처럼 팀을 돌려주게 한다. */
+    /** 휴대 지도: 아이템, 그림 크기, 우리 나라 국경 실선, 아이콘(나·수도). */
+    private fun mapChecks(server: MinecraftServer, viewer: FakePlayer): List<String> {
+        val f = mutableListOf<String>()
+        val level = server.overworld()
+        val hm = dev.menonng.snw.map.HandheldMap
+        val item = hm.create(level)
+        if (!hm.isHandheld(item) || item.get(net.minecraft.core.component.DataComponents.MAP_ID) == null) f += "휴대 지도 아이템이 아님"
+        val reg = dev.menonng.snw.nation.Nations.registry
+        val home = reg.nationOf(viewer.uuid) ?: return f + "지도 검사: 국가 없음"
+        val ck = dev.menonng.snw.api.ChunkKey("minecraft:overworld", 6000 shr 4, 6000 shr 4)
+        level.getChunk(ck.x, ck.z)
+        val claimed = reg.ownerOf(ck) == null && reg.claim(home.id, ck)
+        try {
+            val img = hm.render(level, ck.x * 16 + 8, ck.z * 16 + 8, viewer.uuid, false)
+            if (img.size != 128 * 128) f += "지도 그림 크기가 128x128 이 아님"
+            // 중심 청크의 서쪽 가장자리(px = 64 - 8 = 56) 는 우리 나라 국경(실선)
+            val pal = (0 until 64).map { i -> runCatching { net.minecraft.world.level.material.MapColor.byId(i).col }.getOrDefault(0) }
+            val expect = dev.menonng.snw.logic.map.HandheldMapRules.packed(dev.menonng.snw.logic.map.HandheldMapRules.nearestColor(home.colorRgb, pal), dev.menonng.snw.logic.map.HandheldMapRules.HIGH)
+            if (img[64 * 128 + 56] != expect) f += "우리 나라 국경이 그려지지 않음(${img[64 * 128 + 56]} != $expect)"
+            if (img.count { it != 0.toByte() } < 1000) f += "지형이 거의 그려지지 않음"
+            viewer.snapTo(ck.x * 16 + 8.0, 100.0, ck.z * 16 + 8.0, 0f, 0f)
+            val icons = hm.icons(viewer as net.minecraft.server.level.ServerPlayer, ck.x * 16 + 8, ck.z * 16 + 8)
+            if (icons.none { it.type() == net.minecraft.world.level.saveddata.maps.MapDecorationTypes.PLAYER }) f += "지도에 내 화살표가 없음"
+        } catch (t: Throwable) { f += "휴대 지도 검사 중 예외: $t" }
+        finally { if (claimed) reg.unclaim(ck) }
+        return f
+    }
+
     private class SmokePlayer(level: ServerLevel, name: String = "snw_smoke") : FakePlayer(level, GameProfile(UUID.nameUUIDFromBytes(name.toByteArray()), name)) {
         override fun getTeam(): PlayerTeam? = level().scoreboard.getPlayersTeam(scoreboardName)
         /** Fabric FakePlayer 는 모든 피해를 무시하므로, 보호 규칙 검사가 헛돌지 않게 실제로 피해를 받게 한다. */

@@ -27,6 +27,7 @@ object Snw : ModInitializer {
         dev.menonng.snw.project.VaccineBoard.register()
         ChatRouting.register()
         InfoMenus.register()
+        dev.menonng.snw.map.HandheldMap.register()
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
             if (System.getProperty("snw.smoke") == "true") {
                 val failures = Smoke.run(server)
