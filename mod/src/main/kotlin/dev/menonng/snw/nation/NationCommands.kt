@@ -150,7 +150,8 @@ object NationCommands {
                         }))))
             d.register(admin)
 
-            val n = Commands.literal("n").executes { info(it) }
+            val n = Commands.literal("n").executes { c -> dev.menonng.snw.nation.NationGui.open(c.source.playerOrException); 1 }
+                .then(Commands.literal("info").executes { info(it) })
                 .then(Commands.literal("claim").executes { playerClaim(it, true) })
                 .then(Commands.literal("unclaim").executes { playerClaim(it, false) })
                 .then(Commands.literal("relation").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
@@ -182,7 +183,7 @@ object NationCommands {
                     Nations.assignAndSync(id, nat.id, Role.OFFICER); ok(c, "간부로 임명했습니다."); 1
                 }))
             val nRoot = d.register(n)
-            d.register(Commands.literal("국가").redirect(nRoot).executes { info(it) })
+            d.register(Commands.literal("국가").redirect(nRoot).executes { c -> dev.menonng.snw.nation.NationGui.open(c.source.playerOrException); 1 })
         }
     }
 
@@ -243,49 +244,67 @@ object NationCommands {
         return Triple(capital, main, outposts)
     }
 
-    fun cap(n: NationRegistry.Nation): Int = rules.cap(n.members.size, n.members.sumOf { Nations.zombieScore(it) }, 0)
+    /** 보유 거점 수(거점전 모듈이 채운다). */
+    var landmarksOwned: (String) -> Int = { 0 }
+    fun cap(n: NationRegistry.Nation): Int = rules.cap(n.members.size, n.members.sumOf { Nations.zombieScore(it) }, landmarksOwned(n.id))
+
+    /** 점령·해제(명령과 영토 지도 창이 같이 쓴다). 결과 문구와 성공 여부. */
+    fun claimAt(me: net.minecraft.server.level.ServerPlayer, d: String, target: Chunk, add: Boolean): Pair<Boolean, String> {
+        val n = Nations.registry.nationOf(me.uuid)?.takeIf { !it.fallen } ?: return false to "국가에 속해 있지 않습니다."
+        val (capital, main, outposts) = shape(n, d)
+        if (add) {
+            if (capital == null) return false to "아직 수도가 없습니다. 운영자가 국가 코어를 놓으면 점령할 수 있습니다."
+            val foreign = Nations.registry.allClaims().filter { it.key.dimension == d && it.value != n.id }.keys.map { Chunk(it.x, it.z) }.toSet()
+            val asOutpost = main.none { m -> target.neighbors4().contains(m) } && outposts.none { o -> target.neighbors4().any { it in o } }
+            rules.checkClaim(target, main, outposts, foreign, forbidden(d), cap(n), asNewOutpost = asOutpost)?.let { return false to it.message + "." }
+            Nations.claimAndNotify(n.id, listOf(ChunkKey(d, target.x, target.z)))
+            return true to "${n.name} 영토로 점령했습니다. (${Nations.registry.territory(n.id).size}/${cap(n)})"
+        }
+        if (me.uuid != dev.menonng.snw.season.Season.effectiveLeader(n) && me.uuid !in n.officers) return false to "영토 해제는 원수와 간부만 할 수 있습니다."
+        if (capital == null) return false to "우리 땅이 아닙니다."
+        rules.checkUnclaim(target, capital, main, outposts)?.let { return false to it.message + "." }
+        Nations.unclaimAndNotify(listOf(ChunkKey(d, target.x, target.z)))
+        return true to "점령을 풀었습니다."
+    }
+
+    /** 점령할 수 없는 청크: 생존자 캠프, 거점 구역(거점전 모듈이 채운다). */
+    var landmarkChunks: (String) -> Set<Chunk> = { emptySet() }
+    fun forbidden(d: String): Set<Chunk> {
+        val camp = if (d == "minecraft:overworld") (-CAMP_CHUNK_RADIUS..CAMP_CHUNK_RADIUS).flatMap { x -> (-CAMP_CHUNK_RADIUS..CAMP_CHUNK_RADIUS).map { z -> Chunk(x, z) } }.toSet() else emptySet()
+        return camp + landmarkChunks(d)
+    }
 
     private fun playerClaim(c: CommandContext<CommandSourceStack>, add: Boolean): Int {
         val me = c.source.playerOrException
-        val n = Nations.registry.nationOf(me.uuid)?.takeIf { !it.fallen } ?: return fail(c, "국가에 속해 있지 않습니다.")
-        val d = dim(me.level())
-        val target = Chunk(me.blockPosition().x shr 4, me.blockPosition().z shr 4)
-        val (capital, main, outposts) = shape(n, d)
-        if (add) {
-            if (capital == null) return fail(c, "아직 수도가 없습니다. 운영자가 국가 코어를 놓으면 점령할 수 있습니다.")
-            val foreign = Nations.registry.allClaims().filter { it.key.dimension == d && it.value != n.id }.keys.map { Chunk(it.x, it.z) }.toSet()
-            val camp = if (d == "minecraft:overworld") (-CAMP_CHUNK_RADIUS..CAMP_CHUNK_RADIUS).flatMap { x -> (-CAMP_CHUNK_RADIUS..CAMP_CHUNK_RADIUS).map { z -> Chunk(x, z) } }.toSet() else emptySet()
-            val asOutpost = main.none { m -> target.neighbors4().contains(m) } && outposts.none { o -> target.neighbors4().any { it in o } }
-            rules.checkClaim(target, main, outposts, foreign, camp, cap(n), asNewOutpost = asOutpost)?.let { return fail(c, it.message + ".") }
-            Nations.claimAndNotify(n.id, listOf(ChunkKey(d, target.x, target.z)))
-            ok(c, "이 청크를 ${n.name} 영토로 점령했습니다. (${Nations.registry.territory(n.id).size}/${cap(n)})"); return 1
-        }
-        if (me.uuid != n.leader && me.uuid !in n.officers) return fail(c, "영토 해제는 원수와 간부만 할 수 있습니다.")
-        if (capital == null) return fail(c, "우리 땅이 아닙니다.")
-        rules.checkUnclaim(target, capital, main, outposts)?.let { return fail(c, it.message + ".") }
-        Nations.unclaimAndNotify(listOf(ChunkKey(d, target.x, target.z)))
-        ok(c, "이 청크의 점령을 풀었습니다."); return 1
+        val (okay, msg) = claimAt(me, dim(me.level()), Chunk(me.blockPosition().x shr 4, me.blockPosition().z shr 4), add)
+        return if (okay) { ok(c, msg); 1 } else fail(c, msg)
     }
 
-    private fun playerRelation(c: CommandContext<CommandSourceStack>): Int {
-        val me = c.source.playerOrException
-        val n = Nations.registry.nationOf(me.uuid)?.takeIf { !it.fallen } ?: return fail(c, "국가에 속해 있지 않습니다.")
-        if (dev.menonng.snw.season.Season.effectiveLeader(n) != me.uuid) return fail(c, "관계는 원수만 바꿀 수 있습니다.")
-        val other = nationArg(c)?.takeIf { !it.fallen } ?: return fail(c, "그런 국가가 없습니다.")
-        val want = parseRelation(StringArgumentType.getString(c, "relation")) ?: return fail(c, "관계는 동맹·중립·적대 중 하나입니다.")
+    /** 관계 바꾸기(원수). 명령과 관계 탭이 같이 쓴다. */
+    fun changeRelation(me: net.minecraft.server.level.ServerPlayer, other: NationRegistry.Nation, want: Relation): Pair<Boolean, String> {
+        val n = Nations.registry.nationOf(me.uuid)?.takeIf { !it.fallen } ?: return false to "국가에 속해 있지 않습니다."
+        if (dev.menonng.snw.season.Season.effectiveLeader(n) != me.uuid) return false to "관계는 원수만 바꿀 수 있습니다."
         val now = System.currentTimeMillis()
         val before = Nations.registry.relation(n.id, other.id, now)
         val res = Nations.registry.request(n.id, other.id, want, now)
         val after = Nations.registry.relation(n.id, other.id, now)
         Nations.notifyRelation(n.id, other.id, before, after)
-        val s = c.source.server
+        val s = me.level().server
         when (res) {
             NationRegistry.RelationResult.SCHEDULED -> broadcast(s, "${n.name}이(가) ${other.name}에 적대를 선언했습니다. 12시간 뒤 발효되며, 그때부터 국가 코어를 공격할 수 있습니다.")
-            NationRegistry.RelationResult.PROPOSED -> dev.menonng.snw.season.Season.effectiveLeader(other)?.let { s.playerList.getPlayer(it) }?.sendSystemMessage(Component.literal("${n.name}이(가) ${relationName(want)}을(를) 제안했습니다. 수락하려면 /n relation ${n.id} ${relationName(want)} 를 입력하십시오."))
+            NationRegistry.RelationResult.PROPOSED -> dev.menonng.snw.season.Season.effectiveLeader(other)?.let { s.playerList.getPlayer(it) }?.sendSystemMessage(Component.literal("${n.name}이(가) ${relationName(want)}을(를) 제안했습니다. 수락하려면 /n 의 관계 탭이나 /n relation ${n.id} ${relationName(want)} 를 쓰십시오."))
             NationRegistry.RelationResult.OK -> if (before != after) broadcast(s, "${n.name}·${other.name} 관계가 ${relationName(after)}(으)로 바뀌었습니다.")
             else -> {}
         }
-        return if (res in setOf(NationRegistry.RelationResult.OK, NationRegistry.RelationResult.PROPOSED, NationRegistry.RelationResult.SCHEDULED)) { ok(c, res.message); 1 } else fail(c, res.message)
+        return (res in setOf(NationRegistry.RelationResult.OK, NationRegistry.RelationResult.PROPOSED, NationRegistry.RelationResult.SCHEDULED)) to res.message
+    }
+
+    private fun playerRelation(c: CommandContext<CommandSourceStack>): Int {
+        val me = c.source.playerOrException
+        val other = nationArg(c)?.takeIf { !it.fallen } ?: return fail(c, "그런 국가가 없습니다.")
+        val want = parseRelation(StringArgumentType.getString(c, "relation")) ?: return fail(c, "관계는 동맹·중립·적대 중 하나입니다.")
+        val (okay, msg) = changeRelation(me, other, want)
+        return if (okay) { ok(c, msg); 1 } else fail(c, msg)
     }
 
     fun broadcast(s: net.minecraft.server.MinecraftServer, msg: String, rgb: Int = 0xFF7E00) {

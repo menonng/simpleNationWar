@@ -21,6 +21,7 @@ object Snw : ModInitializer {
         dev.menonng.snw.core.CoreSystem.register()
         dev.menonng.snw.season.Season.register()
         dev.menonng.snw.nickname.Nicknames.register()
+        dev.menonng.snw.nation.Treasury.register()
         ChatRouting.register()
         InfoMenus.register()
         ServerLifecycleEvents.SERVER_STARTED.register { server ->

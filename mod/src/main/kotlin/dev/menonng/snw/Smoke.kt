@@ -120,6 +120,20 @@ internal object Smoke {
         if (pa.displayName.string.contains("노을빛").not()) f += "표시 이름이 닉네임이 아님: ${pa.displayName.string}"
         nk.apply(null, pa.uuid, null)
         if (pa.displayName.string.contains("노을빛")) f += "닉네임을 지워도 표시 이름에 남음"
+        // 국고: 저장·복원, 칸 해금
+        val tr = dev.menonng.snw.nation.Treasury
+        val box = tr.container(server, "n3")
+        val keep = box.getItem(0).copy()
+        box.setItem(0, net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.EMERALD, 7))
+        tr.save(server); box.setItem(0, net.minecraft.world.item.ItemStack.EMPTY); tr.load(server)
+        if (tr.container(server, "n3").getItem(0).count != 7) f += "국고가 저장·복원되지 않음"
+        tr.container(server, "n3").setItem(0, keep); tr.save(server)
+        if (tr.unlocked("nX") != 27) f += "국고 기본 칸이 27 이 아님"
+        // 버튼을 구분하는 창: 우클릭이 1 로 전달되는지
+        var got = -1
+        val menu = dev.menonng.snw.ui.Gui.Menu(1, pb.inventory, net.minecraft.world.SimpleContainer(54), mapOf(20 to { _: net.minecraft.server.level.ServerPlayer, b: Int -> got = b }))
+        menu.clicked(20, 1, net.minecraft.world.inventory.ContainerInput.PICKUP, pb)
+        if (got != 1) f += "창의 우클릭 버튼이 전달되지 않음: $got"
         for (c in listOf("season", "transfer", "nickname")) if (root.getChild("snw")?.getChild(c) == null) f += "/snw $c 미등록"
         for (c in listOf("choose", "capital", "transfer")) if (root.getChild("n")?.getChild(c) == null) f += "/n $c 미등록"
         for (p in listOf(pa, pb, pc)) reg.assign(p.uuid, null)

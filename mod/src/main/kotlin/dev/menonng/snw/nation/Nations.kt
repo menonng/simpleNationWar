@@ -208,6 +208,10 @@ object Nations : NationApi {
     override fun markProtected(player: UUID, untilEpochMillis: Long) = dev.menonng.snw.protect.Protection.markProtected(player, untilEpochMillis)
     override fun grantJoinProtection(player: UUID): Boolean = dev.menonng.snw.protect.Protection.combat.grantJoinProtection(player)
 
+    var infectionLevel: ((String, Int, Int) -> Int)? = null
+        private set
+    override fun setInfectionLevelSource(source: (String, Int, Int) -> Int) { infectionLevel = source }
+
     var zombieScore: (UUID) -> Double = { 0.0 }
         private set
     override fun setZombieScoreSource(source: (UUID) -> Double) { zombieScore = source }

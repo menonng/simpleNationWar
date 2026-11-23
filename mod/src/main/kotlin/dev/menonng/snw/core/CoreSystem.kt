@@ -197,6 +197,7 @@ object CoreSystem {
         val s = level.server
         val now = System.currentTimeMillis()
         val successor = Nations.registry.successorOf(n, lastHitNation, now)
+        n.core?.let { c -> dev.menonng.snw.nation.Treasury.mergeOnFall(s, n.id, successor, level to Vec3(c.x + 0.5, c.y + 1.0, c.z + 0.5)) }
         removeStructure(level, n)
         val people = Nations.registry.fall(n)
         val alive = Nations.registry.alive()
