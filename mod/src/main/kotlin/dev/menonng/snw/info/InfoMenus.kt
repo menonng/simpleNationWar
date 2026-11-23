@@ -84,14 +84,14 @@ object InfoMenus {
             .executes { ctx -> openList(ctx.source.playerOrException, ListState()); 1 }
             .then(
                 Commands.argument("player", StringArgumentType.word())
-                    .suggests { ctx, builder -> SharedSuggestionProvider.suggest(entries(ctx.source.server).map { it.name }, builder) }
+                    .suggests { ctx, builder -> SharedSuggestionProvider.suggest(entries(ctx.source.server).flatMap { listOfNotNull(it.name, dev.menonng.snw.nickname.Nicknames.get(it.id)) }, builder) }
                     .executes { ctx -> openByName(ctx) },
             )
 
     private fun openByName(ctx: CommandContext<CommandSourceStack>): Int {
         val viewer = ctx.source.playerOrException
         val name = StringArgumentType.getString(ctx, "player")
-        val entry = entries(ctx.source.server).firstOrNull { it.name.equals(name, ignoreCase = true) }
+        val entry = entries(ctx.source.server).firstOrNull { it.name.equals(name, ignoreCase = true) || dev.menonng.snw.nickname.Nicknames.get(it.id)?.equals(name, ignoreCase = true) == true }
         if (entry == null) {
             ctx.source.sendFailure(Component.literal("그런 플레이어가 없습니다: $name"))
             return 0
@@ -99,6 +99,9 @@ object InfoMenus {
         openProfile(viewer, entry, null)
         return 1
     }
+
+    /** 닉네임이 있으면 닉네임(아래 줄에 마크 이름이 회색으로 함께 나온다). */
+    private fun shown(e: Entry): String = dev.menonng.snw.nickname.Nicknames.get(e.id) ?: e.name
 
     /** 이번 월드에 접속한 적 있는 모든 플레이어(통계 파일 기준) + 지금 접속 중인 사람. */
     fun entries(server: MinecraftServer): List<Entry> {
@@ -233,7 +236,7 @@ object InfoMenus {
                 gray("KDA %.2f · 좀비 처치 %,d".format(s.kda, s.zombieKills)),
                 text("▶ 클릭해서 정보 보기", SKY),
             )
-            container.setItem(slot, head(e, text(e.name, nationColor(t)), lore))
+            container.setItem(slot, head(e, text(shown(e), nationColor(t)), lore))
             actions[slot] = { p -> openProfile(p, e, state.copy(page = page)) }
         }
 
@@ -275,7 +278,7 @@ object InfoMenus {
         val actions = HashMap<Int, (ServerPlayer) -> Unit>()
         fun extra(section: String) = extraLines.flatMap { it(e.id, section) }
 
-        container.setItem(4, head(e, text(e.name, color), listOf(
+        container.setItem(4, head(e, text(shown(e), color), listOf(
             gray(e.name),
             text(t?.displayName?.string ?: "무소속", color),
             gray(lastSeen(server, e)),
@@ -284,7 +287,10 @@ object InfoMenus {
             text(t?.displayName?.string ?: "무소속", color),
         ) + extra("국가"), hide = setOf(DataComponents.BANNER_PATTERNS)))
         container.setItem(21, item(Items.IRON_SWORD, text("전투"), listOf(
-            gray("K ${s.kills}   D ${s.deaths}   KDA %.2f".format(s.kda)),
+            dev.menonng.snw.protect.Protection.stats(e.id).let { k -> gray("K ${k.kills}   D ${k.deaths}   A ${k.assists}") },
+            dev.menonng.snw.protect.Protection.stats(e.id).let { k -> gray("KDA %.2f".format(k.kda)) },
+            dev.menonng.snw.protect.Protection.stats(e.id).let { k -> gray("PvP 기준 KDA %.2f (PvP 사망 ${k.deathsPvp})".format(k.kdaPvp)) },
+            dev.menonng.snw.protect.Protection.stats(e.id).let { k -> gray("아군 사살 ${k.teamKills}") },
         ) + extra("전투"), hide = setOf(DataComponents.ATTRIBUTE_MODIFIERS)))
         container.setItem(23, item(Items.ROTTEN_FLESH, text("좀비"), listOf(
             gray("좀비 처치 %,d".format(s.zombieKills)),
@@ -304,7 +310,7 @@ object InfoMenus {
         container.setItem(49, item(Items.BARRIER, text("닫기")))
         actions[49] = { p -> p.closeContainer() }
 
-        open(viewer, Component.literal("${e.name}의 정보"), container, actions)
+        open(viewer, Component.literal("${shown(e)}의 정보"), container, actions)
     }
 
     private fun open(viewer: ServerPlayer, title: Component, container: SimpleContainer, actions: Map<Int, (ServerPlayer) -> Unit>) {

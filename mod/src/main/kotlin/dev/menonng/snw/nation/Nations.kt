@@ -45,7 +45,6 @@ object Nations : NationApi {
     private val claimListeners = CopyOnWriteArrayList<(NationId, Set<ChunkKey>, Set<ChunkKey>) -> Unit>()
     private val relationListeners = CopyOnWriteArrayList<(NationId, NationId, Relation, Relation) -> Unit>()
     private val killListeners = CopyOnWriteArrayList<(KillRecord) -> Unit>()
-    private val nicknames = HashMap<UUID, String>()
     private val busListeners = CopyOnWriteArrayList<Pair<String?, (ServerEvent) -> Unit>>()
 
     fun register() {
@@ -165,8 +164,9 @@ object Nations : NationApi {
     override fun allied(a: UUID, b: UUID): Boolean = registry.allied(a, b)
     override fun ownerOf(chunk: ChunkKey): NationView? = registry.ownerOf(chunk)?.let(::view)
     override fun territory(nation: NationId): Set<ChunkKey> = registry.territory(nation.value)
-    override fun nickname(player: UUID): String? = nicknames[player]
-    override fun setNickname(player: UUID, nickname: String?) { if (nickname == null) nicknames.remove(player) else nicknames[player] = nickname }
+    override fun nickname(player: UUID): String? = dev.menonng.snw.nickname.Nicknames.get(player)
+    /** 봇(snw-discord)이 검사를 마친 닉네임을 넣는다. */
+    override fun setNickname(player: UUID, nickname: String?) = dev.menonng.snw.nickname.Nicknames.apply(server, player, nickname)
     override fun assign(player: UUID, nation: NationId?, role: Role) = assignAndSync(player, nation?.value, role)
 
     private val eventsImpl = object : NationEvents {

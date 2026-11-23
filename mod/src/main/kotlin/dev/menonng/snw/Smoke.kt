@@ -113,7 +113,14 @@ internal object Smoke {
         if (spot == null || !(dist in 39.0..61.0 || dist < 1.0)) f += "개인 스폰 지점이 40~60블록 고리가 아님: $dist"
         dev.menonng.snw.season.Season.state.personalSpawn.remove(pa.uuid.toString())
         n2.spawnX = ox; n2.spawnZ = oz
-        for (c in listOf("season", "transfer")) if (root.getChild("snw")?.getChild(c) == null) f += "/snw $c 미등록"
+        // 닉네임: 개인정보 검사(거절), 통과면 표시 이름이 닉네임
+        val nk = dev.menonng.snw.nickname.Nicknames
+        if (nk.check(server, pa.uuid, "민수0101").verdict != dev.menonng.snw.logic.nickname.NicknameValidator.Verdict.REJECT) f += "전화번호 같은 닉네임이 거절되지 않음"
+        nk.apply(null, pa.uuid, "노을빛")
+        if (pa.displayName.string.contains("노을빛").not()) f += "표시 이름이 닉네임이 아님: ${pa.displayName.string}"
+        nk.apply(null, pa.uuid, null)
+        if (pa.displayName.string.contains("노을빛")) f += "닉네임을 지워도 표시 이름에 남음"
+        for (c in listOf("season", "transfer", "nickname")) if (root.getChild("snw")?.getChild(c) == null) f += "/snw $c 미등록"
         for (c in listOf("choose", "capital", "transfer")) if (root.getChild("n")?.getChild(c) == null) f += "/n $c 미등록"
         for (p in listOf(pa, pb, pc)) reg.assign(p.uuid, null)
         dev.menonng.snw.nation.Nations.save(server)

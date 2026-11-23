@@ -55,6 +55,20 @@ object NationCommands {
         CommandRegistrationCallback.EVENT.register { d, _, _ ->
             val admin = Commands.literal("snw").requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
                 .then(Commands.literal("status").executes { status(it) })
+                .then(Commands.literal("nickname").then(Commands.argument("player", StringArgumentType.word()).suggests(playerNames)
+                    .then(Commands.literal("set").then(Commands.argument("nick", StringArgumentType.word()).executes { c -> adminNick(c, false) }
+                        .then(Commands.literal("confirm").executes { c -> adminNick(c, true) })))
+                    .then(Commands.literal("clear").executes { c ->
+                        val id = Nations.idOf(c.source.server, StringArgumentType.getString(c, "player")) ?: return@executes fail(c, "그런 플레이어를 찾지 못했습니다.")
+                        dev.menonng.snw.nickname.Nicknames.apply(c.source.server, id, null); ok(c, "닉네임을 지웠습니다."); 1
+                    })
+                    .then(Commands.literal("approve").executes { c ->
+                        val id = Nations.idOf(c.source.server, StringArgumentType.getString(c, "player")) ?: return@executes fail(c, "그런 플레이어를 찾지 못했습니다.")
+                        val pend = dev.menonng.snw.nickname.Nicknames.state.pending[id.toString()] ?: return@executes fail(c, "승인을 기다리는 닉네임이 없습니다.")
+                        dev.menonng.snw.nickname.Nicknames.apply(c.source.server, id, pend.nick)
+                        c.source.server.playerList.getPlayer(id)?.sendSystemMessage(Component.literal("닉네임 '${pend.nick}'이(가) 승인되었습니다."))
+                        ok(c, "닉네임을 승인했습니다."); 1
+                    })))
                 .then(Commands.literal("season")
                     .then(Commands.literal("start").executes { c -> ok(c, dev.menonng.snw.season.Season.start(c.source.server)); 1 })
                     .then(Commands.literal("status").executes { c -> c.source.sendSuccess({ Component.literal(dev.menonng.snw.season.Season.status(c.source.server)) }, false); 1 }))
@@ -141,6 +155,9 @@ object NationCommands {
                 .then(Commands.literal("unclaim").executes { playerClaim(it, false) })
                 .then(Commands.literal("relation").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
                     .then(Commands.argument("relation", StringArgumentType.word()).suggests(relationWords).executes { playerRelation(it) })))
+                .then(Commands.literal("nickname").then(Commands.argument("nick", StringArgumentType.word()).executes { c ->
+                    ok(c, dev.menonng.snw.nickname.Nicknames.request(c.source.playerOrException, StringArgumentType.getString(c, "nick"))); 1
+                }))
                 .then(Commands.literal("choose").executes { c -> dev.menonng.snw.season.Season.openChooser(c.source.playerOrException); 1 })
                 .then(Commands.literal("capital").then(Commands.literal("move").executes { c ->
                     val r = dev.menonng.snw.season.Season.moveCapital(c.source.playerOrException)
@@ -167,6 +184,17 @@ object NationCommands {
             val nRoot = d.register(n)
             d.register(Commands.literal("국가").redirect(nRoot).executes { info(it) })
         }
+    }
+
+    private fun adminNick(c: CommandContext<CommandSourceStack>, confirm: Boolean): Int {
+        val s = c.source.server
+        val id = Nations.idOf(s, StringArgumentType.getString(c, "player")) ?: return fail(c, "그런 플레이어를 찾지 못했습니다.")
+        val r = dev.menonng.snw.nickname.Nicknames.check(s, id, StringArgumentType.getString(c, "nick"))
+        if (r.verdict == dev.menonng.snw.logic.nickname.NicknameValidator.Verdict.REJECT) return fail(c, "쓸 수 없는 닉네임입니다: ${r.reasons.joinToString { it.message }}.")
+        if (r.verdict == dev.menonng.snw.logic.nickname.NicknameValidator.Verdict.REVIEW && !confirm)
+            return fail(c, "확인이 필요한 닉네임입니다(${r.reasons.joinToString { it.message }}). 맞으면 끝에 confirm 을 붙여 다시 입력하십시오.")
+        dev.menonng.snw.nickname.Nicknames.apply(s, id, r.normalized)
+        ok(c, "닉네임을 '${r.normalized}'(으)로 정했습니다."); return 1
     }
 
     private fun spawnProblems(): String {
