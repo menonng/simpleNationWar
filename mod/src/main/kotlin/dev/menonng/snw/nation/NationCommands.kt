@@ -55,6 +55,12 @@ object NationCommands {
         CommandRegistrationCallback.EVENT.register { d, _, _ ->
             val admin = Commands.literal("snw").requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
                 .then(Commands.literal("status").executes { status(it) })
+                .then(Commands.literal("season")
+                    .then(Commands.literal("start").executes { c -> ok(c, dev.menonng.snw.season.Season.start(c.source.server)); 1 })
+                    .then(Commands.literal("status").executes { c -> c.source.sendSuccess({ Component.literal(dev.menonng.snw.season.Season.status(c.source.server)) }, false); 1 }))
+                .then(Commands.literal("transfer").then(Commands.literal("open").then(Commands.argument("hours", IntegerArgumentType.integer(1, 168)).executes { c ->
+                    dev.menonng.snw.season.Season.openTransfer(c.source.server, IntegerArgumentType.getInteger(c, "hours")); ok(c, "이적 창을 열었습니다."); 1
+                })))
                 .then(Commands.literal("save").executes { Nations.save(it.source.server); ok(it, "국가 데이터를 저장했습니다."); 1 })
                 .then(Commands.literal("nation").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
                     .then(Commands.literal("rename").then(Commands.argument("name", StringArgumentType.greedyString()).executes { c ->
@@ -135,10 +141,23 @@ object NationCommands {
                 .then(Commands.literal("unclaim").executes { playerClaim(it, false) })
                 .then(Commands.literal("relation").then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds)
                     .then(Commands.argument("relation", StringArgumentType.word()).suggests(relationWords).executes { playerRelation(it) })))
+                .then(Commands.literal("choose").executes { c -> dev.menonng.snw.season.Season.openChooser(c.source.playerOrException); 1 })
+                .then(Commands.literal("capital").then(Commands.literal("move").executes { c ->
+                    val r = dev.menonng.snw.season.Season.moveCapital(c.source.playerOrException)
+                    if (r.endsWith("옮겼습니다.")) { ok(c, r); 1 } else fail(c, r)
+                }))
+                .then(Commands.literal("transfer")
+                    .then(Commands.literal("accept").then(Commands.argument("player", StringArgumentType.word()).suggests(playerNames).executes { c ->
+                        ok(c, dev.menonng.snw.season.Season.acceptTransfer(c.source.playerOrException, StringArgumentType.getString(c, "player"))); 1
+                    }))
+                    .then(Commands.argument("nation", StringArgumentType.word()).suggests(nationIds).executes { c ->
+                        val to = nationArg(c)?.takeIf { !it.fallen } ?: return@executes fail(c, "그런 국가가 없습니다.")
+                        ok(c, dev.menonng.snw.season.Season.requestTransfer(c.source.playerOrException, to)); 1
+                    }))
                 .then(Commands.literal("officer").then(Commands.argument("player", StringArgumentType.word()).suggests(playerNames).executes { c ->
                     val me = c.source.playerOrException
                     val nat = Nations.registry.nationOf(me.uuid) ?: return@executes fail(c, "국가에 속해 있지 않습니다.")
-                    if (nat.leader != me.uuid) return@executes fail(c, "간부 임명은 원수만 할 수 있습니다.")
+                    if (dev.menonng.snw.season.Season.effectiveLeader(nat) != me.uuid) return@executes fail(c, "간부 임명은 원수만 할 수 있습니다.")
                     val id = Nations.idOf(c.source.server, StringArgumentType.getString(c, "player")) ?: return@executes fail(c, "그런 플레이어를 찾지 못했습니다.")
                     if (Nations.registry.nationOf(id)?.id != nat.id) return@executes fail(c, "같은 국가 국민만 임명할 수 있습니다.")
                     if (id in nat.officers) { nat.officers.remove(id); Nations.markDirty(); ok(c, "간부에서 해임했습니다."); return@executes 1 }
@@ -223,7 +242,7 @@ object NationCommands {
     private fun playerRelation(c: CommandContext<CommandSourceStack>): Int {
         val me = c.source.playerOrException
         val n = Nations.registry.nationOf(me.uuid)?.takeIf { !it.fallen } ?: return fail(c, "국가에 속해 있지 않습니다.")
-        if (n.leader != me.uuid) return fail(c, "관계는 원수만 바꿀 수 있습니다.")
+        if (dev.menonng.snw.season.Season.effectiveLeader(n) != me.uuid) return fail(c, "관계는 원수만 바꿀 수 있습니다.")
         val other = nationArg(c)?.takeIf { !it.fallen } ?: return fail(c, "그런 국가가 없습니다.")
         val want = parseRelation(StringArgumentType.getString(c, "relation")) ?: return fail(c, "관계는 동맹·중립·적대 중 하나입니다.")
         val now = System.currentTimeMillis()
@@ -234,7 +253,7 @@ object NationCommands {
         val s = c.source.server
         when (res) {
             NationRegistry.RelationResult.SCHEDULED -> broadcast(s, "${n.name}이(가) ${other.name}에 적대를 선언했습니다. 12시간 뒤 발효되며, 그때부터 국가 코어를 공격할 수 있습니다.")
-            NationRegistry.RelationResult.PROPOSED -> other.leader?.let { s.playerList.getPlayer(it) }?.sendSystemMessage(Component.literal("${n.name}이(가) ${relationName(want)}을(를) 제안했습니다. 수락하려면 /n relation ${n.id} ${relationName(want)} 를 입력하십시오."))
+            NationRegistry.RelationResult.PROPOSED -> dev.menonng.snw.season.Season.effectiveLeader(other)?.let { s.playerList.getPlayer(it) }?.sendSystemMessage(Component.literal("${n.name}이(가) ${relationName(want)}을(를) 제안했습니다. 수락하려면 /n relation ${n.id} ${relationName(want)} 를 입력하십시오."))
             NationRegistry.RelationResult.OK -> if (before != after) broadcast(s, "${n.name}·${other.name} 관계가 ${relationName(after)}(으)로 바뀌었습니다.")
             else -> {}
         }
@@ -250,7 +269,7 @@ object NationCommands {
         val n = Nations.registry.nationOf(me.uuid)?.takeIf { !it.fallen } ?: return fail(c, "국가에 속해 있지 않습니다.")
         val now = System.currentTimeMillis()
         val s = c.source.server
-        val leader = n.leader?.let { Nations.nameOf(s, it) } ?: "없음"
+        val leader = dev.menonng.snw.season.Season.effectiveLeader(n)?.let { Nations.nameOf(s, it) } ?: "없음"
         val rel = Nations.registry.nations.values.filter { it.id != n.id && !it.fallen }.joinToString(", ") { "${it.name} ${relationName(Nations.registry.relation(n.id, it.id, now))}" }
         val core = n.core?.let { "코어 ${Nations.registry.coreHp(n, now).toInt()} / 100,000" } ?: "코어 없음"
         me.sendSystemMessage(Component.literal("[${n.name}] 원수 $leader · 국민 ${n.members.size}명 · 영토 ${Nations.registry.territory(n.id).size}/${cap(n)}청크 · $core\n관계: $rel")

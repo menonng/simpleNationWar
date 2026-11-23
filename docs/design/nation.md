@@ -411,6 +411,12 @@ Towns and Nations 의 랜드마크 + 존재 기반 점령을 가져오되, 영�
 | `/n` | `/국가` | simpleNationWar | 국가 GUI: 국가 정보, 국민 목록, 영토 지도(점령·해제), 국고, 관계, 거점, 연구 |
 | `/info [플레이어]` | `/정보` | simpleNationWar | **정보 상자 창**을 연다. 생략하면 플레이어 목록(머리), 이름을 주면 그 사람 정보 창. 대상은 마크 이름 또는 커스텀 닉네임(자동완성에 둘 다 나옴). 채팅에서 닉네임을 클릭해도 열린다 |
 | `/g <메시지>` | `/전체` | simpleNationWar | 전체 채팅. 그냥 치는 채팅은 국가 채팅이라, 서버 전체에 말할 때만 쓴다 |
+| `/n claim` · `/n unclaim` | | simpleNationWar | 지금 선 청크 점령·해제(해제는 원수·간부). 영토 지도 창(`/n`)과 같은 규칙 |
+| `/n relation <국가> <동맹\|중립\|적대>` | | simpleNationWar | 관계 제안·수락·선언(원수, 원수 부재 72시간이면 임시 원수) |
+| `/n officer <플레이어>` | | simpleNationWar | 간부 임명·해임(원수) |
+| `/n transfer <국가>` · `/n transfer accept <플레이어>` | | simpleNationWar | 이적 창이 열렸을 때 신청, 양쪽 원수 동의 |
+| `/n capital move` | | simpleNationWar | 수도 이전(시즌 시작 72시간 안 1회, 원수, 처음 스폰 지점 250블록 안·다른 수도 400블록 밖) |
+| `/n choose` | | simpleNationWar | 늦게 온 사람의 국가 선택 창 다시 열기 |
 
 명령어 없이 하는 것:
 

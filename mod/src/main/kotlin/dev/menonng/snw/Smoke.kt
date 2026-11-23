@@ -80,6 +80,10 @@ internal object Smoke {
         if (api?.ownerOf(k)?.id?.value != "n2") f += "영토 점령이 API 에 보이지 않음"
         dev.menonng.snw.nation.Nations.unclaimAndNotify(listOf(k))
         if (api?.ownerOf(k) != null) f += "영토 해제가 API 에 보이지 않음"
+        // 시즌 전에는 캠프라 피해가 없으므로, 보호 규칙 검사 동안만 시즌이 시작된 것으로 둔다
+        val season = dev.menonng.snw.season.Season.state
+        val wasStarted = season.started
+        season.started = true
         // 같은 국가에게 치명타 → 그 자리 부활, 동맹은 피해 없음
         val level = server.overworld()
         val pa = SmokePlayer(level, "snw_smoke_a"); val pb = SmokePlayer(level, "snw_smoke_b"); val pc = SmokePlayer(level, "snw_smoke_c")
@@ -96,6 +100,21 @@ internal object Smoke {
         pa.hurtServer(level, level.damageSources().playerAttack(pc), 5f)
         if (pa.health < before) f += "보호 중인 공격자의 피해가 들어감"
         f += coreChecks(server, pa, pb, pc)
+        season.started = false
+        val hp0 = pa.health; pa.hurtServer(level, level.damageSources().generic(), 3f)
+        if (pa.health < hp0) f += "시즌 전인데 피해를 받음"
+        season.started = wasStarted
+        // 개인 스폰 지점: 국가 스폰 지점에서 40~60블록(48번 안에 못 찾으면 스폰 지점)
+        val n2 = reg.nation("n2")!!
+        val (ox, oz) = n2.spawnX to n2.spawnZ
+        n2.spawnX = 7000; n2.spawnZ = 7000
+        val spot = dev.menonng.snw.season.Season.pickPersonal(server, n2, pa.uuid)
+        val dist = spot?.let { Math.hypot(it.x - 7000.0, it.z - 7000.0) } ?: -1.0
+        if (spot == null || !(dist in 39.0..61.0 || dist < 1.0)) f += "개인 스폰 지점이 40~60블록 고리가 아님: $dist"
+        dev.menonng.snw.season.Season.state.personalSpawn.remove(pa.uuid.toString())
+        n2.spawnX = ox; n2.spawnZ = oz
+        for (c in listOf("season", "transfer")) if (root.getChild("snw")?.getChild(c) == null) f += "/snw $c 미등록"
+        for (c in listOf("choose", "capital", "transfer")) if (root.getChild("n")?.getChild(c) == null) f += "/n $c 미등록"
         for (p in listOf(pa, pb, pc)) reg.assign(p.uuid, null)
         dev.menonng.snw.nation.Nations.save(server)
         if (!java.nio.file.Files.exists(server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("snw/nations.json"))) f += "nations.json 저장 안 됨"
