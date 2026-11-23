@@ -129,6 +129,29 @@ object NationCommands {
                         n.coreHp = v; n.coreHpAtLastHit = v; n.coreLastHit = System.currentTimeMillis(); Nations.markDirty()
                         ok(c, "${n.name} 코어 체력을 ${v.toInt()}(으)로 맞췄습니다."); 1
                     }))))
+                .then(Commands.literal("landmark").then(Commands.argument("id", StringArgumentType.word())
+                        .suggests { _, b -> SharedSuggestionProvider.suggest(dev.menonng.snw.landmark.Landmarks.state.landmarks.keys, b) }
+                    .then(Commands.literal("set").then(Commands.argument("kind", StringArgumentType.word()).suggests { _, b -> SharedSuggestionProvider.suggest(listOf("border", "deep"), b) }
+                        .then(Commands.argument("name", StringArgumentType.greedyString()).executes { c ->
+                            val kind = if (StringArgumentType.getString(c, "kind") == "deep") dev.menonng.snw.landmark.Landmarks.Kind.DEEP else dev.menonng.snw.landmark.Landmarks.Kind.BORDER
+                            val l = dev.menonng.snw.landmark.Landmarks.define(c.source.level, StringArgumentType.getString(c, "id"), StringArgumentType.getString(c, "name").trim(), kind,
+                                net.minecraft.core.BlockPos.containing(c.source.position))
+                            ok(c, "${l.name}(${l.kind.label})을(를) 지정했습니다. 이 자리에 보상 상자를 두었습니다."); 1
+                        })))
+                    .then(Commands.literal("owner").then(Commands.argument("nation", StringArgumentType.word()).suggests { _, b -> SharedSuggestionProvider.suggest(Nations.registry.nations.keys + "none", b) }.executes { c ->
+                        val l = dev.menonng.snw.landmark.Landmarks.state.landmarks[StringArgumentType.getString(c, "id")] ?: return@executes fail(c, "그런 거점이 없습니다.")
+                        val nid = StringArgumentType.getString(c, "nation").takeIf { it != "none" && it != "없음" }
+                        if (nid != null && Nations.registry.nation(nid) == null) return@executes fail(c, "그런 국가가 없습니다.")
+                        dev.menonng.snw.landmark.Landmarks.setOwner(c.source.server, l, nid); ok(c, "${l.name} 소유를 ${nid ?: "없음"}(으)로 정했습니다."); 1
+                    }))
+                    .then(Commands.literal("remove").executes { c ->
+                        val l = dev.menonng.snw.landmark.Landmarks.state.landmarks.remove(StringArgumentType.getString(c, "id")) ?: return@executes fail(c, "그런 거점이 없습니다.")
+                        dev.menonng.snw.landmark.Landmarks.save(c.source.server); ok(c, "${l.name}을(를) 지웠습니다."); 1
+                    })))
+                .then(Commands.literal("war").then(Commands.literal("window")
+                    .then(Commands.literal("start").executes { c -> dev.menonng.snw.landmark.Landmarks.state.forced = true; ok(c, "거점전 시간을 수동으로 열었습니다."); 1 })
+                    .then(Commands.literal("stop").executes { c -> dev.menonng.snw.landmark.Landmarks.state.forced = false; ok(c, "거점전 시간을 수동으로 닫았습니다."); 1 })
+                    .then(Commands.literal("auto").executes { c -> dev.menonng.snw.landmark.Landmarks.state.forced = null; ok(c, "거점전 시간을 시간표대로 되돌렸습니다."); 1 })))
                 .then(Commands.literal("siege")
                     .then(Commands.literal("open").executes { c -> dev.menonng.snw.core.SiegeSchedule.forced = true; ok(c, "공성 시간을 수동으로 열었습니다(/snw siege auto 로 되돌립니다)."); 1 })
                     .then(Commands.literal("close").executes { c -> dev.menonng.snw.core.SiegeSchedule.forced = false; ok(c, "공성 시간을 수동으로 닫았습니다."); 1 })

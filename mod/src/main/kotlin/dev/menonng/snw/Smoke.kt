@@ -134,7 +134,17 @@ internal object Smoke {
         val menu = dev.menonng.snw.ui.Gui.Menu(1, pb.inventory, net.minecraft.world.SimpleContainer(54), mapOf(20 to { _: net.minecraft.server.level.ServerPlayer, b: Int -> got = b }))
         menu.clicked(20, 1, net.minecraft.world.inventory.ContainerInput.PICKUP, pb)
         if (got != 1) f += "창의 우클릭 버튼이 전달되지 않음: $got"
-        for (c in listOf("season", "transfer", "nickname")) if (root.getChild("snw")?.getChild(c) == null) f += "/snw $c 미등록"
+        // 거점: 지정·점령 금지 청크·소유·영토 상한 +8
+        val lm = dev.menonng.snw.landmark.Landmarks
+        val lpos = net.minecraft.core.BlockPos(8000, 120, 8000); level.getChunk(lpos)
+        val l = lm.define(level, "smoke_lm", "시험 거점", dev.menonng.snw.landmark.Landmarks.Kind.BORDER, lpos)
+        if (dev.menonng.snw.logic.territory.Chunk(8000 shr 4, 8000 shr 4) !in dev.menonng.snw.nation.NationCommands.forbidden("minecraft:overworld")) f += "거점 청크가 점령 금지가 아님"
+        val capBefore = dev.menonng.snw.nation.NationCommands.cap(reg.nation("n1")!!)
+        lm.setOwner(server, l, "n1")
+        if (dev.menonng.snw.nation.NationCommands.cap(reg.nation("n1")!!) != capBefore + 8) f += "거점 소유가 영토 상한 +8 이 아님"
+        if (!level.getBlockState(lpos).`is`(net.minecraft.world.level.block.Blocks.CHEST)) f += "거점 보상 상자가 없음"
+        lm.state.landmarks.remove("smoke_lm"); level.setBlockAndUpdate(lpos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()); lm.save(server)
+        for (c in listOf("season", "transfer", "nickname", "landmark", "war")) if (root.getChild("snw")?.getChild(c) == null) f += "/snw $c 미등록"
         for (c in listOf("choose", "capital", "transfer")) if (root.getChild("n")?.getChild(c) == null) f += "/n $c 미등록"
         for (p in listOf(pa, pb, pc)) reg.assign(p.uuid, null)
         dev.menonng.snw.nation.Nations.save(server)

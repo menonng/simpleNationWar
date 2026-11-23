@@ -208,6 +208,10 @@ object Nations : NationApi {
     override fun markProtected(player: UUID, untilEpochMillis: Long) = dev.menonng.snw.protect.Protection.markProtected(player, untilEpochMillis)
     override fun grantJoinProtection(player: UUID): Boolean = dev.menonng.snw.protect.Protection.combat.grantJoinProtection(player)
 
+    override fun landmarks(): List<dev.menonng.snw.api.LandmarkView> = dev.menonng.snw.landmark.Landmarks.state.landmarks.values.map {
+        dev.menonng.snw.api.LandmarkView(it.id, it.name, it.dim, it.x, it.y, it.z, it.owner?.let(::NationId), it.kind == dev.menonng.snw.landmark.Landmarks.Kind.DEEP)
+    }
+
     var infectionLevel: ((String, Int, Int) -> Int)? = null
         private set
     override fun setInfectionLevelSource(source: (String, Int, Int) -> Int) { infectionLevel = source }
