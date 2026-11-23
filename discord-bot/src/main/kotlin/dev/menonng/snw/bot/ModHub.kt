@@ -161,4 +161,32 @@ class ModHub(private val db: Db, private val front: Front, private val validator
 
     fun announce(text: String, title: String? = null) { send(Protocol.ANNOUNCE, mapOf("text" to text, "title" to title)) }
     fun requestStats() { send(Protocol.STATS_REQUEST, emptyMap()) }
+
+    // ------------------------------------------------------------------ 디스코드 명령 보조
+
+    fun userOf(discordId: String): Db.User? = db.user(discordId)
+
+    /** /정보: 마지막 통계 스냅샷에서 그 사람 줄(마크 이름은 쓰지 않는다). */
+    fun infoLine(u: Db.User): String {
+        val snap = db.get("stats")?.let { runCatching { JsonParser.parseString(it).asJsonObject }.getOrNull() }
+        val row = snap?.getAsJsonArray("players")?.map { it.asJsonObject }?.firstOrNull { it["uuid"]?.asString == u.mcUuid }
+        val nation = u.nation?.let { " · $it" } ?: ""
+        return if (row == null) "**${u.nickname}**$nation · 아직 기록이 없습니다"
+        else "**${u.nickname}**$nation · K ${row["k"].asInt} / D ${row["d"].asInt} / A ${row["a"].asInt} · 좀비 스코어 ${"%.0f".format(row["zombieScore"]?.asDouble ?: 0.0)}"
+    }
+
+    /** 닉네임 변경 신청(운영진 승인 전까지 보관). 승인은 운영진이 DB 의 kv 를 보고 changeNickname 을 부른다. */
+    fun queueNicknameChange(discordId: String, nickname: String) { db.put("nick.pending.$discordId", nickname) }
+
+    /** #서버-상태(매일 06:05): 어제 시간대별 최대 접속, 감염 레벨(마지막 일일 값). 개인별 접속 시간은 없다. */
+    fun dailyStatus(day: java.time.LocalDate): String {
+        val peaks = (0..23).mapNotNull { h -> db.onlineAt(day.toString(), h)?.let { h to it } }
+        val peak = peaks.maxByOrNull { it.second }
+        val daily = db.get("daily")?.let { runCatching { JsonParser.parseString(it).asJsonObject }.getOrNull() }
+        val lines = mutableListOf("📊 $day 서버 상태")
+        lines += if (peak == null) "· 접속 기록 없음" else "· 최대 동시 접속 ${peak.second}명(${peak.first}시)"
+        daily?.get("wild")?.asDouble?.let { lines += "· 야생 감염 레벨 ${"%.1f".format(it)}" }
+        daily?.getAsJsonObject("nations")?.entrySet()?.forEach { (n, v) -> lines += "· $n 영토 감염 레벨 ${"%.1f".format(v.asDouble)}" }
+        return lines.joinToString("\n")
+    }
 }

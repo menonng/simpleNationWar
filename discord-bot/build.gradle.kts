@@ -29,6 +29,9 @@ dependencies {
     testRuntimeOnly(libs.junit.launcher)
 }
 
-application { mainClass.set("dev.menonng.snw.bot.MainKt") }
+application {
+    mainClass.set("dev.menonng.snw.bot.MainKt")
+    applicationDefaultJvmArgs = listOf("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "--enable-native-access=ALL-UNNAMED")
+}
 
 tasks.test { useJUnitPlatform() }

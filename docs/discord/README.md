@@ -272,3 +272,19 @@ Fabric 서버 모드, Kotlin, `environment: "server"`. 브랜치 `discord-mod` �
 ### 6. 명령
 
 `/snwd status`, `/snwd reload`, `/snwd resync` (운영자). 일반 플레이어 명령 없음.
+
+
+---
+
+## 구현 (2026-11-23)
+
+| 부분 | 위치 | 상태 |
+|---|---|---|
+| 공용 규약 | `logic` 의 `discord/`(메시지 종류·ack·대기열 종류·ULID·중복 거르기·재연결 간격·연동 코드·사건 매핑·#알림 문장) | 테스트 `DiscordProtocolTest` |
+| 연동 모드 | 별도 모드 대신 **snw 안의 `discord/DiscordLink.kt`**(기본 꺼짐, `config/snw-discord.json` 의 `enabled`). 접속 확인은 `PlayerListLoginMixin`(바닐라 화이트리스트 자리) | 실제 봇에 붙여 연결·사건 전달 확인 |
+| 봇 | `discord-bot` 모듈(JDA 6.4.1, Java-WebSocket 1.6.0, SQLite). `ModHub`(규약·가입·연동 규칙, 디스코드와 분리), `WsServer`, `DiscordFront`(JDA), `DiaryJob`(일지 모듈), `Db` | 통합 테스트 `BotFlowTest`(실제 WebSocket: 비밀 불일치 거부, hello→welcome, 연동 코드→연동→link.confirmed·ack, 중복 사건 한 번만, 일지에 마크 이름 없음) |
+
+- 설계의 Ktor 대신 Java-WebSocket(가벼움), Exposed 대신 JDBC 로 했다.
+- 등록 모달은 텍스트 칸만 쓴다(마크 이름·닉네임·시간대·주간 시간·'동의'). 일지 닉네임 표시는 기본 켬, 웃긴 기록은 기본 끔.
+- 실행: `./gradlew :discord-bot:installDist` → `SNW_BOT_TOKEN=… SNW_WS_SECRET=… discord-bot/build/install/discord-bot/bin/discord-bot config.json`. 토큰이 없으면 디스코드 없이 모드 연결·기록만 한다(시험용).
+- **아직 안 한 것**: 상호평가·국가 추첨식(`/평가`·`/팀`, peer-rating.md), 닉네임 변경 승인 버튼(지금은 운영진 채널 알림 + 보관), 국가 카테고리·채널 자동 생성, 게임 안 평가 창(상자창). 실제 디스코드 서버에서의 동작은 토큰이 없어 확인하지 못했다.
