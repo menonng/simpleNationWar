@@ -29,6 +29,10 @@ fun main(args: Array<String>) {
     }
     val hub = ModHub(db, front, zone = zone)
     discord?.hub = hub
+    val ratings = RatingService(db, hub)
+    val teams = TeamService(db, hub)
+    hub.onRatingSubmit = { r, t, sc -> ratings.submitFromGame(r, t, sc) }
+    val season = discord?.let { d -> SeasonFront(cfg, d, db, hub, ratings, teams).also { s -> d.extraCommands = s.commands(); d.jda.addEventListener(s) } }
     val ws = WsServer(cfg.wsHost, cfg.wsPort, secret, hub)
     ws.start()
     // 매일 아침: 일지(06:00), 상태(06:05)
@@ -48,6 +52,7 @@ fun main(args: Array<String>) {
             discord?.status(text) ?: println(text)
             hub.requestStats()
         }
+        runCatching { season?.tick() }.onFailure { System.err.println("[snw-bot] 평가 마감 확인 오류: $it") }
     }, 10, 30, TimeUnit.SECONDS)
     Runtime.getRuntime().addShutdownHook(Thread { runCatching { ws.stop(1000) }; discord?.shutdown(); db.close() })
 }

@@ -236,7 +236,10 @@ object DiscordLink {
                 }
             }
             Protocol.STATS_REQUEST -> sendStats()
-            Protocol.RATING_REQUEST -> Snw.log.info("[snw-discord] 상호평가 요청을 받았습니다(게임 안 평가 창은 아직 없습니다. 디스코드에서 평가합니다).")
+            Protocol.RATING_REQUEST -> {
+                RatingGui.onRequest(d)
+                server?.playerList?.players?.forEach { p -> if (RatingGui.available(p)) notifyRating(p) }
+            }
             else -> Snw.log.debug("[snw-discord] 알 수 없는 메시지 {}", type)
         }
         if (Protocol.needsAck(type)) ack(id)
@@ -291,6 +294,10 @@ object DiscordLink {
         }
     }
 
+    private fun notifyRating(p: net.minecraft.server.level.ServerPlayer) =
+        p.sendSystemMessage(Component.literal("상호평가가 열렸습니다. 디스코드 DM 이나 게임 안 ").append(Component.literal("/평가").withStyle(Style.EMPTY.withColor(SKY)))
+            .append(Component.literal(" 상자창에서 평가할 수 있습니다.")))
+
     fun status(): String = if (!config.enabled) "디스코드 연동이 꺼져 있습니다(config/snw-discord.json 의 enabled)." else
         "봇 ${if (connected) "연결됨" else "연결 안 됨"}${lastError?.let { " ($it)" } ?: ""} · 연동 ${cache.links.size}명 · 확인 대기 ${pending.size}건(대기열 ${outboxIds.size})"
 
@@ -298,10 +305,14 @@ object DiscordLink {
         loadConfig()
         ServerLifecycleEvents.SERVER_STARTED.register { s -> server = s; hook(); connect() }
         ServerLifecycleEvents.SERVER_STOPPING.register { _ -> server = null; runCatching { ws?.sendClose(WebSocket.NORMAL_CLOSURE, "server stopping") } }
-        ServerPlayConnectionEvents.JOIN.register { h, _, _ -> send(Protocol.JOIN, mapOf("uuid" to h.player.uuid.toString(), "ts" to System.currentTimeMillis())) }
+        ServerPlayConnectionEvents.JOIN.register { h, _, _ ->
+            send(Protocol.JOIN, mapOf("uuid" to h.player.uuid.toString(), "ts" to System.currentTimeMillis()))
+            if (RatingGui.available(h.player)) notifyRating(h.player)
+        }
         ServerPlayConnectionEvents.DISCONNECT.register { h, _ -> send(Protocol.LEAVE, mapOf("uuid" to h.player.uuid.toString(), "ts" to System.currentTimeMillis())) }
         sched.scheduleAtFixedRate({ runCatching { if (connected) ws?.sendPing(ByteBuffer.allocate(0)) } }, Protocol.PING_SECONDS, Protocol.PING_SECONDS, TimeUnit.SECONDS)
         CommandRegistrationCallback.EVENT.register { d, _, _ ->
+            d.register(Commands.literal("평가").executes { c -> c.source.player?.let { RatingGui.open(it) }; Command.SINGLE_SUCCESS })
             d.register(Commands.literal("snwd").requires { Commands.LEVEL_GAMEMASTERS.check(it.permissions()) }
                 .then(Commands.literal("status").executes { c -> c.source.sendSuccess({ Component.literal(status()) }, false); Command.SINGLE_SUCCESS })
                 .then(Commands.literal("reload").executes { c ->

@@ -27,10 +27,12 @@ import net.dv8tion.jda.api.requests.GatewayIntent
  */
 class DiscordFront(private val cfg: BotConfig, token: String) : ListenerAdapter(), Front {
     lateinit var hub: ModHub
-    private val jda: JDA = JDABuilder.createLight(token, GatewayIntent.GUILD_MEMBERS).addEventListeners(this).build()
-    private fun guild() = jda.getGuildById(cfg.guildId)
-    private fun channel(id: String) = id.takeIf { it.isNotBlank() }?.let { guild()?.getTextChannelById(it) }
-    private fun post(id: String, text: String) { channel(id)?.sendMessage(text.take(1990))?.queue() }
+    val jda: JDA = JDABuilder.createLight(token, GatewayIntent.GUILD_MEMBERS, GatewayIntent.DIRECT_MESSAGES).addEventListeners(this).build()
+    /** 상호평가·국가 추첨 명령(SeasonFront 가 채운다). */
+    var extraCommands: List<net.dv8tion.jda.api.interactions.commands.build.CommandData> = emptyList()
+    fun guild() = jda.getGuildById(cfg.guildId)
+    fun channel(id: String) = id.takeIf { it.isNotBlank() }?.let { guild()?.getTextChannelById(it) }
+    fun post(id: String, text: String) { channel(id)?.sendMessage(text.take(1990))?.queue() }
 
     // ------------------------------------------------------------------ Front
     override fun alert(text: String) { if (cfg.alerts) post(cfg.channels.alerts, text) }
@@ -58,11 +60,12 @@ class DiscordFront(private val cfg: BotConfig, token: String) : ListenerAdapter(
             Commands.slash("서버상태", "접속자·봇 연결").setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MANAGE_SERVER)),
             Commands.slash("서버공지", "디스코드 #공지 + 게임 안 방송").addOption(OptionType.STRING, "내용", "공지", true)
                 .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MANAGE_SERVER)),
+            *extraCommands.toTypedArray(),
         ).queue()
         // #등록 안내(한 번만)
         val reg = channel(cfg.channels.register) ?: return
         if (hub.let { true } && (reg.latestMessageIdLong == 0L)) reg.sendMessage("환영합니다! 아래 [등록하기]로 닉네임을 정하고, 마크 서버에 접속하면 뜨는 6자리 코드를 [연동 코드 입력]에 넣으세요.")
-            .setComponents(ActionRow.of(Button.primary("snw:register", "등록하기"), Button.secondary("snw:link", "연동 코드 입력"))).queue()
+            .setComponents(ActionRow.of(Button.primary("snw:register", "등록하기"), Button.secondary("snw:link", "연동 코드 입력"), Button.secondary("snw:buddy", "단짝 지목"))).queue()
     }
 
     override fun onGuildMemberJoin(event: GuildMemberJoinEvent) {
@@ -124,7 +127,8 @@ class DiscordFront(private val cfg: BotConfig, token: String) : ListenerAdapter(
             }
             "닉네임변경" -> {
                 val nick = event.getOption("닉네임")?.asString ?: return
-                post(cfg.channels.admin, "닉네임 변경 신청: <@${event.user.id}> → `$nick`")
+                channel(cfg.channels.admin)?.sendMessage("닉네임 변경 신청: <@${event.user.id}> → `$nick`")
+                    ?.setComponents(ActionRow.of(Button.success("nick:ok:${event.user.id}", "승인"), Button.danger("nick:no:${event.user.id}", "거절")))?.queue()
                 event.reply("운영진에게 신청했습니다. 승인되면 바뀝니다.").setEphemeral(true).queue()
                 hub.queueNicknameChange(event.user.id, nick)
             }
