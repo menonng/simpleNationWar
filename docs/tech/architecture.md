@@ -29,7 +29,7 @@ simpleNationWar/            (기본 브랜치)
 │     ├─ stats/             K/D/A, 피해 기여 추적
 │     ├─ display/           닉네임(탭 목록·채팅 표시 이름), 바닐라 팀, 로케이터 바 필터
 │     ├─ map/               MapAdapter, BlueMap·squaremap 어댑터, 다각형 병합
-│     ├─ gui/               상자 메뉴 DSL, /n 화면들, 다이얼로그
+│     ├─ gui/               상자 메뉴 DSL, /n 화면들(UI 는 무조건 상자창)
 │     ├─ command/           /n, /info, /snw (Brigadier Kotlin DSL)
 │     └─ data/              SavedData 코덱
 ├─ logic/                   마인크래프트를 모르는 순수 Kotlin: K/D/A 판정(어시스트 창·최소 기여·반복 킬), 영토 상한, 점령 조건, 다각형 병합, 관계 전이·휴전 규칙. JUnit 테스트
