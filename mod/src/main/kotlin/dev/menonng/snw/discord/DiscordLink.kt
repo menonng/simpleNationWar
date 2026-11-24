@@ -321,6 +321,7 @@ object DiscordLink {
                     if (config.enabled && !was) connect() else if (!config.enabled) runCatching { ws?.sendClose(WebSocket.NORMAL_CLOSURE, "disabled") }
                     c.source.sendSuccess({ Component.literal("설정을 다시 읽었습니다. ${status()}") }, true); Command.SINGLE_SUCCESS
                 })
+                .then(Commands.literal("rating-preview").executes { c -> c.source.player?.let { RatingGui.preview(it) }; Command.SINGLE_SUCCESS })
                 .then(Commands.literal("resync").executes { c -> if (connected) hello(); c.source.sendSuccess({ Component.literal(if (connected) "봇에 다시 동기화를 요청했습니다." else "봇에 연결되어 있지 않습니다.") }, true); Command.SINGLE_SUCCESS }))
         }
     }
