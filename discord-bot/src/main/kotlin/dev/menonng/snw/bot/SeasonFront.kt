@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
 /**
  * 상호평가·국가 추첨식의 디스코드 화면(peer-rating.md). 규칙은 RatingService·TeamService(그 아래 logic 의 PeerRating·TeamDraw).
  * - /평가 시작·현황·종료·결과, DM 의 [평가하기] → 대상 한 명당 모달(항목 = 라디오 그룹, ⭐1~5·잘 모름)
- * - /팀 팀장·추첨·교환·확정·최적화, #등록 의 [단짝 지목](유저 선택 메뉴, 지목 내용은 본인과 봇만)
+ * - /팀 팀장·추첨·확정·최적화(관리자), /교환(모두), #등록 의 [단짝 지목](유저 선택 메뉴, 지목 내용은 본인과 봇만)
  * - 닉네임 변경 승인 버튼(운영진 채널)
  */
 class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, private val db: Db, private val hub: ModHub,
@@ -42,13 +42,14 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
             SubcommandData("종료", "마감하고 집계"),
             SubcommandData("결과", "본인에게 DM 으로 결과").addOption(OptionType.BOOLEAN, "공개", "#공지에 항목별 상위 3명", false),
         ),
-        Commands.slash("팀", "국가 추첨식").addSubcommands(
+        Commands.slash("팀", "국가 추첨식(관리자)").setDefaultPermissions(admin).addSubcommands(
             SubcommandData("팀장", "팀장(원수) 3명 확정(관리자)").addOption(OptionType.USER, "첫째", "팀장", true).addOption(OptionType.USER, "둘째", "팀장", true).addOption(OptionType.USER, "셋째", "팀장", true),
             SubcommandData("추첨", "시드 해시 공개 → 한 명씩 공개 → 시드 공개(관리자)"),
-            SubcommandData("교환", "다른 국가 한 명과 맞교환 신청(24시간)").addOption(OptionType.USER, "상대", "바꿀 사람", true),
             SubcommandData("확정", "국가 역할·채널을 만들고 게임에 배정(관리자)"),
             SubcommandData("최적화", "예비: 최적화 편성 상위 3안(관리자)"),
         ),
+        // 디스코드는 권한을 명령 단위로만 숨길 수 있어서, 모두가 쓰는 맞교환은 /팀 에서 떼어 따로 둔다
+        Commands.slash("교환", "추첨 뒤 24시간: 다른 국가 한 명과 맞교환 신청").addOption(OptionType.USER, "상대", "바꿀 사람", true),
     ) + (if (kit != null) listOf(Commands.slash("테스트", "시험 모드: 가짜 멤버로 혼자 시험(관리자)").setDefaultPermissions(admin).addSubcommands(
         SubcommandData("나", "나를 참가자로(게임 연동 없이)"),
         SubcommandData("더미", "가짜 멤버를 n 명까지 채웁니다").addOption(OptionType.INTEGER, "수", "기본 11, 최대 ${TestKit.MAX}", false),
@@ -76,6 +77,7 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
         when (event.name) {
             "평가" -> rating(event)
             "팀" -> team(event)
+            "교환" -> swap(event)
             "테스트" -> test(event)
         }
     }
@@ -111,8 +113,7 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
     }
 
     private fun team(e: SlashCommandInteractionEvent) {
-        val adminOnly = e.subcommandName != "교환"
-        if (adminOnly && !isAdmin(e)) { e.reply("관리자만 쓸 수 있습니다.").setEphemeral(true).queue(); return }
+        if (!isAdmin(e)) { e.reply("관리자만 쓸 수 있습니다.").setEphemeral(true).queue(); return }
         when (e.subcommandName) {
             "팀장" -> {
                 val ids = listOf("첫째", "둘째", "셋째").mapNotNull { e.getOption(it)?.asUser?.id }
@@ -125,13 +126,6 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
                 val (hash, res) = teams.draw() ?: run { e.reply("팀장 3명을 먼저 정해 주세요(또는 이미 확정됨).").setEphemeral(true).queue(); return }
                 e.reply("추첨을 시작합니다.").setEphemeral(true).queue()
                 reveal(hash, res)
-            }
-            "교환" -> {
-                val other = e.getOption("상대")?.asUser ?: return
-                val msg = teams.requestSwap(e.user.id, other.id)
-                if (msg.startsWith("상대에게")) dmId(other.id, "${db.user(e.user.id)?.nickname} 님이 국가 맞교환을 신청했습니다. 원하면 /팀 교환 으로 그 사람을 고르세요.")
-                if (msg == "교환했습니다.") front.post(cfg.channels.notice, "🔁 ${db.user(e.user.id)?.nickname} ↔ ${db.user(other.id)?.nickname} 국가 맞교환")
-                e.reply(msg).setEphemeral(true).queue()
             }
             "확정" -> {
                 val assign = teams.confirm() ?: run { e.reply("확정할 추첨 결과가 없습니다(또는 이미 확정됨).").setEphemeral(true).queue(); return }
@@ -194,6 +188,14 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
         front.post(cfg.channels.admin, "🧪 시험용 국가 역할·채널을 지웠습니다.")
     }
 
+    private fun swap(e: SlashCommandInteractionEvent) {
+        val other = e.getOption("상대")?.asUser ?: return
+        val msg = teams.requestSwap(e.user.id, other.id)
+        if (msg.startsWith("상대에게")) dmId(other.id, "${db.user(e.user.id)?.nickname} 님이 국가 맞교환을 신청했습니다. 원하면 /교환 으로 그 사람을 고르세요.")
+        if (msg == "교환했습니다.") front.post(cfg.channels.notice, "🔁 ${db.user(e.user.id)?.nickname} ↔ ${db.user(other.id)?.nickname} 국가 맞교환")
+        e.reply(msg).setEphemeral(true).queue()
+    }
+
     /** 추첨식 공개: 시드 해시 → 10초마다 한 단위씩 → 시드와 공개 입력(순위 구간만). */
     private fun reveal(hash: String, res: TeamDraw.Result) {
         val names = teams.NATIONS.map { it.second }
@@ -207,7 +209,7 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
             delay += 10
         }
         sched.schedule({
-            front.post(cfg.channels.notice, "🎲 추첨 끝. 시드: `${teams.state.seed}` — 같은 입력과 시드로 누구나 결과를 재현할 수 있습니다.\n24시간 동안 /팀 교환 으로 다른 국가 한 명과 서로 신청해 맞바꿀 수 있습니다.")
+            front.post(cfg.channels.notice, "🎲 추첨 끝. 시드: `${teams.state.seed}` — 같은 입력과 시드로 누구나 결과를 재현할 수 있습니다.\n24시간 동안 /교환 으로 다른 국가 한 명과 서로 신청해 맞바꿀 수 있습니다.")
             front.post(cfg.channels.notice, "공개 입력(개인 점수 대신 순위 구간):\n" + teams.publicInput().take(1800))
         }, delay, TimeUnit.SECONDS)
     }
