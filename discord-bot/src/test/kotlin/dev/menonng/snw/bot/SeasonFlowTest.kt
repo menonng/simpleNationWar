@@ -81,7 +81,10 @@ class SeasonFlowTest {
         val (hash, res) = ts.draw()!!
         assertEquals(64, hash.length)
         assertEquals(15, res.teams.flatten().toSet().size)
-        assertTrue(res.teams.any { "d5" in it && "d6" in it } || sorted.take(3).any { it.discordId in setOf("d5", "d6") })
+        // 단짝은 자리가 모자라면 규칙상 풀릴 수 있어(TeamDraw), 무작위 시드 대신 입력과 고정 시드로 확인한다
+        assertTrue(ts.input().buddies.containsAll(listOf("d5" to "d6", "d6" to "d5")))
+        val fixed = dev.menonng.snw.logic.discord.TeamDraw.draw(ts.input(), "season-flow-fixed")
+        assertTrue(fixed.teams.any { "d5" in it && "d6" in it }, "서로 지목한 단짝은 같은 국가")
         // 교환: 한쪽 신청 → 대기, 양쪽 → 가드 확인
         val a = ts.state.teams[0].first { it !in ts.state.leaders }; val b = ts.state.teams[1].first { it !in ts.state.leaders }
         assertTrue(ts.requestSwap(a, b).startsWith("상대에게"))

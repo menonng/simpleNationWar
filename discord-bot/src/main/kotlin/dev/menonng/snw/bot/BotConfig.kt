@@ -18,6 +18,8 @@ data class BotConfig(
     var diaryHour: Int = 6,
     var statusMinute: Int = 5,
     var alerts: Boolean = true,
+    /** 시험 모드: /테스트 명령(가짜 멤버로 평가·추첨 흐름을 혼자 시험). 실제 시즌에는 끈다. 시험용 dbPath 를 따로 쓰길 권한다. */
+    var testMode: Boolean = false,
 ) {
     data class Channels(var register: String = "", var notice: String = "", var status: String = "", var diary: String = "", var alerts: String = "", var admin: String = "")
     data class Roles(var unregistered: String = "", var survivor: String = "", var admin: String = "", var nations: MutableMap<String, String> = linkedMapOf())

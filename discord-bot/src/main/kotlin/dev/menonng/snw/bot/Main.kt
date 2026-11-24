@@ -32,7 +32,8 @@ fun main(args: Array<String>) {
     val ratings = RatingService(db, hub)
     val teams = TeamService(db, hub)
     hub.onWelcome = { ratings.pushInfo() }
-    val season = discord?.let { d -> SeasonFront(cfg, d, db, hub, ratings, teams).also { s -> d.extraCommands = s.commands(); d.jda.addEventListener(s) } }
+    val kit = if (cfg.testMode) TestKit(db, ratings, teams).also { println("[snw-bot] 시험 모드가 켜져 있습니다(/테스트). 실제 시즌에는 config 의 testMode 를 끄세요.") } else null
+    val season = discord?.let { d -> SeasonFront(cfg, d, db, hub, ratings, teams, kit).also { s -> d.extraCommands = s.commands(); d.jda.addEventListener(s) } }
     val ws = WsServer(cfg.wsHost, cfg.wsPort, secret, hub)
     ws.start()
     // 매일 아침: 일지(06:00), 상태(06:05)

@@ -111,6 +111,12 @@ class Db(url: String) : AutoCloseable {
     fun openRound(): Round? = readRounds("WHERE status='open'").firstOrNull()
     fun lastClosedRound(): Round? = readRounds("WHERE status='closed'").firstOrNull()
     @Synchronized fun setRoundStatus(id: Long, status: String) = c.prepareStatement("UPDATE rating_rounds SET status=? WHERE id=?").use { it.setString(1, status); it.setLong(2, id); it.executeUpdate() }
+    @Synchronized fun setDeadline(id: Long, deadline: Long) = c.prepareStatement("UPDATE rating_rounds SET deadline=?, reminded=0 WHERE id=?").use { it.setLong(1, deadline); it.setLong(2, id); it.executeUpdate() }
+    @Synchronized fun deleteUser(id: String) {
+        for (sql in listOf("DELETE FROM users WHERE discord_id=?", "DELETE FROM ratings WHERE rater_id=? OR target_id=?", "DELETE FROM buddies WHERE discord_id=? OR buddy_id=?"))
+            c.prepareStatement(sql).use { p -> repeat(sql.count { it == '?' }) { p.setString(it + 1, id) }; p.executeUpdate() }
+    }
+    @Synchronized fun deleteNation(id: String) = c.prepareStatement("DELETE FROM nations WHERE id=?").use { it.setString(1, id); it.executeUpdate() }
     @Synchronized fun markReminded(id: Long) = c.prepareStatement("UPDATE rating_rounds SET reminded=1 WHERE id=?").use { it.setLong(1, id); it.executeUpdate() }
 
     @Synchronized fun putRating(round: Long, rater: String, target: String, scores: Map<String, Int?>, now: Long) {

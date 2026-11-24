@@ -53,6 +53,9 @@ class TeamService(private val db: Db, private val hub: ModHub) {
         return TeamDraw.seedHash(seed) to res
     }
 
+    /** 시험 정리용: 추첨 상태를 비운다. */
+    fun reset() { state = State(); save() }
+
     fun nationOf(discordId: String): Int = state.teams.indexOfFirst { discordId in it }
 
     /** 맞교환 신청. 서로 신청하면 가드를 확인하고 바꾼다. 결과 문장. */

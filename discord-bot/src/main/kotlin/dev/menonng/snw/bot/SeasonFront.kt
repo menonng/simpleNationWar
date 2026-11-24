@@ -29,7 +29,8 @@ import java.util.concurrent.TimeUnit
  * - 닉네임 변경 승인 버튼(운영진 채널)
  */
 class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, private val db: Db, private val hub: ModHub,
-                  private val ratings: RatingService, private val teams: TeamService) : ListenerAdapter() {
+                  private val ratings: RatingService, private val teams: TeamService,
+                  private val kit: TestKit? = null) : ListenerAdapter() {
     private val sched = Executors.newSingleThreadScheduledExecutor()
     private val admin = DefaultMemberPermissions.enabledFor(Permission.MANAGE_SERVER)
 
@@ -48,20 +49,34 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
             SubcommandData("확정", "국가 역할·채널을 만들고 게임에 배정(관리자)"),
             SubcommandData("최적화", "예비: 최적화 편성 상위 3안(관리자)"),
         ),
-    )
+    ) + (if (kit != null) listOf(Commands.slash("테스트", "시험 모드: 가짜 멤버로 혼자 시험(관리자)").setDefaultPermissions(admin).addSubcommands(
+        SubcommandData("나", "나를 참가자로(게임 연동 없이)"),
+        SubcommandData("더미", "가짜 멤버를 n 명까지 채웁니다").addOption(OptionType.INTEGER, "수", "기본 11, 최대 ${TestKit.MAX}", false),
+        SubcommandData("평가채우기", "가짜 멤버들이 모두를(나 포함) 평가합니다"),
+        SubcommandData("마감당기기", "마감을 n 분 뒤로(독촉 DM → 자동 마감 시험)").addOption(OptionType.INTEGER, "분", "기본 2", false),
+        SubcommandData("단짝", "가짜 멤버끼리 단짝 두 쌍"),
+        SubcommandData("팀장자동", "예상 시간 상위 절반에서 팀장 3명").addOption(OptionType.BOOLEAN, "나포함", "나를 팀장에 넣기", false),
+        SubcommandData("교환", "더미 n 번과 나의 맞교환(양쪽 신청)").addOption(OptionType.INTEGER, "번호", "더미 번호", true),
+        SubcommandData("목록", "가짜 멤버와 국가 배정"),
+        SubcommandData("정리", "가짜 멤버·시험 기록 삭제").addOption(OptionType.BOOLEAN, "국가채널", "봇이 만든 국가 역할·채널도 삭제", false),
+    )) else emptyList())
 
     private fun isAdmin(e: SlashCommandInteractionEvent) = e.member?.hasPermission(Permission.MANAGE_SERVER) == true
 
     private fun dm(user: User, text: String, vararg buttons: Button) {
         user.openPrivateChannel().flatMap { ch -> if (buttons.isEmpty()) ch.sendMessage(text) else ch.sendMessage(text).setComponents(ActionRow.of(buttons.toList())) }.queue({}, {})
     }
-    private fun dmId(id: String, text: String, vararg buttons: Button) = front.jda.retrieveUserById(id).queue({ dm(it, text, *buttons) }, {})
+    private fun dmId(id: String, text: String, vararg buttons: Button) {
+        if (TestKit.isDummy(id)) return                     // 가짜 멤버는 디스코드 계정이 없다
+        front.jda.retrieveUserById(id).queue({ dm(it, text, *buttons) }, {})
+    }
 
     // ------------------------------------------------------------------ 명령
     override fun onSlashCommandInteraction(event: SlashCommandInteractionEvent) {
         when (event.name) {
             "평가" -> rating(event)
             "팀" -> team(event)
+            "테스트" -> test(event)
         }
     }
 
@@ -130,6 +145,55 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
         }
     }
 
+    private fun test(e: SlashCommandInteractionEvent) {
+        val kit = kit ?: return
+        if (!isAdmin(e)) { e.reply("관리자만 쓸 수 있습니다.").setEphemeral(true).queue(); return }
+        val me = e.user.id
+        fun say(t: String) = e.reply("🧪 $t".take(1990)).setEphemeral(true).queue()
+        when (e.subcommandName) {
+            "나" -> say(if (kit.linkSelf(me)) "참가자로 넣었습니다(닉네임 ${db.user(me)?.nickname}, 예상 시간 14h~). 게임 연동 없이 디스코드 흐름만 시험합니다." else "이미 연동된 참가자입니다.")
+            "더미" -> { val n = e.getOption("수")?.asInt ?: 11; val made = kit.addDummies(n); say("가짜 멤버를 ${made}명 만들었습니다(지금 ${kit.dummies().size}명). 참가자 ${ratings.participants().size}명.") }
+            "평가채우기" -> say(kit.fillRatings()?.let { "가짜 멤버들이 ${it}건 평가했습니다. 더미01 은 한 사람에게 1점을 몰아줘서 /평가 종료 때 이상치 경고가 나와야 합니다." } ?: "열린 라운드가 없습니다. /평가 시작 먼저.")
+            "마감당기기" -> { val m = e.getOption("분")?.asInt ?: 2; say(kit.pullDeadline(m)?.let { "마감을 ${m}분 뒤로 당겼습니다. 30초 안에 미완료자 독촉 DM, ${m}분 뒤 자동 마감과 운영진 채널 알림이 와야 합니다." } ?: "열린 라운드가 없습니다.") }
+            "단짝" -> { val p = kit.pairBuddies(); say(if (p.isEmpty()) "가짜 멤버가 2명 이상 있어야 합니다." else "단짝: " + p.joinToString(", ") { (a, b) -> "${db.user(a)?.nickname}↔${db.user(b)?.nickname}" }) }
+            "팀장자동" -> {
+                val err = kit.autoLeaders(if (e.getOption("나포함")?.asBoolean == true) me else null)
+                if (err != null) say(err) else {
+                    front.post(cfg.channels.notice, "👑 팀장(원수)이 정해졌습니다: " + teams.state.leaders.mapNotNull { db.user(it)?.nickname }.joinToString(", "))
+                    say("팀장: " + teams.state.leaders.mapNotNull { db.user(it)?.nickname }.joinToString(", ") + ". 이제 /팀 추첨.")
+                }
+            }
+            "교환" -> {
+                val msg = kit.swapWith(e.getOption("번호")!!.asInt, me)
+                if (msg == "교환했습니다.") front.post(cfg.channels.notice, "🔁 ${db.user(me)?.nickname} ↔ ${db.user(TestKit.idOf(e.getOption("번호")!!.asInt))?.nickname} 국가 맞교환")
+                say(msg)
+            }
+            "목록" -> {
+                val ds = kit.dummies()
+                val nat = { id: String -> teams.nationOf(id).takeIf { it >= 0 }?.let { " · " + teams.NATIONS[it].second } ?: "" }
+                say(if (ds.isEmpty()) "가짜 멤버가 없습니다." else ds.joinToString("\n") { "${it.nickname} (${it.weeklyBand})" + nat(it.discordId) } + "\n나${nat(me)}")
+            }
+            "정리" -> {
+                val text = kit.cleanup(me)
+                val chans = e.getOption("국가채널")?.asBoolean == true
+                say(text + if (chans) ", 국가 역할·채널 삭제 중" else "")
+                if (chans) sched.execute { deleteNations() }
+            }
+        }
+    }
+
+    /** 시험 정리: 봇이 만든 국가 역할·카테고리·채널을 지운다(관리자가 고른 경우만). */
+    private fun deleteNations() {
+        val g = front.guild() ?: return
+        for (n in db.nations()) {
+            n.channels?.split(',')?.filter { it.isNotBlank() }?.forEach { id -> g.getGuildChannelById(id)?.delete()?.complete() }
+            n.categoryId?.let { g.getCategoryById(it)?.delete()?.complete() }
+            n.roleId?.let { g.getRoleById(it)?.delete()?.complete() }
+            db.deleteNation(n.id)
+        }
+        front.post(cfg.channels.admin, "🧪 시험용 국가 역할·채널을 지웠습니다.")
+    }
+
     /** 추첨식 공개: 시드 해시 → 10초마다 한 단위씩 → 시드와 공개 입력(순위 구간만). */
     private fun reveal(hash: String, res: TeamDraw.Result) {
         val names = teams.NATIONS.map { it.second }
@@ -163,7 +227,7 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
             ).joinToString(",") else existing!!.channels!!
             val leader = assign.entries.firstOrNull { it.value.first == id && it.value.second == "LEADER" }?.key
             db.putNation(Db.Nation(id, name, color, role.id, cat.id, chans, leader))
-            for ((did, nr) in assign) if (nr.first == id) g.retrieveMemberById(did).queue({ m -> g.addRoleToMember(m, role).queue() }, {})
+            for ((did, nr) in assign) if (nr.first == id && !TestKit.isDummy(did)) g.retrieveMemberById(did).queue({ m -> g.addRoleToMember(m, role).queue() }, {})
         }
         front.post(cfg.channels.notice, "🏳 국가가 확정되었습니다. 국가 채널이 열렸습니다. 국가 이름은 각 국가에서 정해 주세요.")
     }
