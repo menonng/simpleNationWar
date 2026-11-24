@@ -31,7 +31,7 @@ fun main(args: Array<String>) {
     discord?.hub = hub
     val ratings = RatingService(db, hub)
     val teams = TeamService(db, hub)
-    hub.onRatingSubmit = { r, t, sc -> ratings.submitFromGame(r, t, sc) }
+    hub.onWelcome = { ratings.pushInfo() }
     val season = discord?.let { d -> SeasonFront(cfg, d, db, hub, ratings, teams).also { s -> d.extraCommands = s.commands(); d.jda.addEventListener(s) } }
     val ws = WsServer(cfg.wsHost, cfg.wsPort, secret, hub)
     ws.start()

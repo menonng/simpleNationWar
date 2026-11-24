@@ -32,8 +32,8 @@ class ModHub(private val db: Db, private val front: Front, private val validator
     private val dedup = Dedup()
     private val pending = java.util.Collections.synchronizedMap(LinkedHashMap<String, String>())
     @Volatile var sink: ((String) -> Unit)? = null
-    /** 게임 안 평가 창의 제출(rater UUID, target UUID, 항목 → 별). RatingService 가 채운다. */
-    var onRatingSubmit: ((String, String, Map<String, Int?>) -> Boolean)? = null
+    /** welcome 을 보낸 뒤(재연결 포함) 부른다: 게임 안 '내 평가 정보'를 다시 보낸다. */
+    var onWelcome: (() -> Unit)? = null
     @Volatile var connected = false; private set
     val online: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
@@ -61,6 +61,7 @@ class ModHub(private val db: Db, private val front: Front, private val validator
             "nations" to users.filter { it.nation != null }.map { mapOf("uuid" to it.mcUuid, "nation" to it.nation, "role" to (it.role ?: "CITIZEN")) },
         ))
         synchronized(pending) { pending.values.toList() }.forEach { sink?.invoke(it) }
+        onWelcome?.invoke()
     }
 
     // ------------------------------------------------------------------ 받기
@@ -82,10 +83,6 @@ class ModHub(private val db: Db, private val front: Front, private val validator
             Protocol.LEAVE -> { online -= data["uuid"] as String }
             Protocol.LINK_CODE -> db.putCode(data["code"] as String, data["uuid"] as String, data["name"] as? String, (data["expiresAt"] as Number).toLong())
             Protocol.STATS -> db.put("stats", d.toString())
-            Protocol.RATING_SUBMIT -> {
-                @Suppress("UNCHECKED_CAST") val sc = (data["scores"] as? Map<String, Any?>).orEmpty().mapValues { (_, v) -> (v as? Number)?.toInt()?.takeIf { it in 1..5 } }
-                onRatingSubmit?.invoke(data["rater"] as String, data["target"] as String, sc)
-            }
             else -> {
                 if (!db.recordEvent(id, type, d.toString(), ts)) { if (Protocol.needsAck(type)) ack(id); return }
                 if (type == Protocol.DAILY) db.put("daily", d.toString())

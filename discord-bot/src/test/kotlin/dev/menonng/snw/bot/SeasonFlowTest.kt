@@ -35,13 +35,15 @@ class SeasonFlowTest {
     @Test fun ratingRoundEndToEnd() {
         val (db, hub, sent) = setup(8)
         val rs = RatingService(db, hub)
-        hub.onRatingSubmit = { r, t, sc -> rs.submitFromGame(r, t, sc) }
         val round = rs.start(null, 48)
         assertNotNull(round)
         assertNull(rs.start(null, 48), "라운드는 하나만")
-        val req = sent.map { JsonParser.parseString(it).asJsonObject }.first { it["type"].asString == Protocol.RATING_REQUEST }
-        assertEquals(8, req["data"].asJsonObject.getAsJsonArray("pairs").size())
-        assertEquals(7, req["data"].asJsonObject.getAsJsonArray("pairs")[0].asJsonObject.getAsJsonArray("targets").size())   // 자기 자신 제외
+        fun lastInfo() = sent.map { JsonParser.parseString(it).asJsonObject }.last { it["type"].asString == Protocol.RATING_INFO }["data"].asJsonObject.getAsJsonArray("players")
+            .associate { it.asJsonObject["uuid"].asString to it.asJsonObject }
+        val first = lastInfo()
+        assertEquals(8, first.size)
+        assertEquals(7, first["00000000-0000-0000-0000-000000000001"]!!.getAsJsonObject("open")["total"].asInt)   // 자기 자신 제외
+        assertTrue(first.values.none { it.has("result") }, "공개 전에는 점수가 가지 않는다")
 
         // 디스코드 모달 제출: d1 은 모두 4점, 나머지는 d2 에게 5점
         for (i in 2..8) assertTrue(rs.submit("d1", "d$i", round!!.categories.associateWith { 4 }))
@@ -50,18 +52,21 @@ class SeasonFlowTest {
         assertNull(rs.nextTarget(round, "d1"))
         for (i in 3..8) rs.submit("d$i", "d2", round.categories.associateWith { if (it == "build") null else 5 })
 
-        // 게임 안 상자창 제출(rating.submit, UUID 기준)
-        hub.onText(Gson().toJson(mapOf("v" to 1, "id" to Ulid.next(), "type" to Protocol.RATING_SUBMIT, "ts" to 0,
-            "data" to mapOf("round" to round.id, "rater" to "00000000-0000-0000-0000-000000000003", "target" to "00000000-0000-0000-0000-000000000004",
-                "scores" to round.categories.associateWith { 2 }))))
-        assertTrue("d4" in db.ratedTargets(round.id, "d3"))
-        assertTrue(sent.any { JsonParser.parseString(it).asJsonObject.let { o -> o["type"].asString == Protocol.ACK } }, "rating.submit 은 ack")
+        assertEquals(7, lastInfo()["00000000-0000-0000-0000-000000000001"]!!.getAsJsonObject("open")["done"].asInt)   // 디스코드 평가가 게임 진행에 반영
+        assertTrue(Protocol.RATING_INFO !in Protocol.NEEDS_ACK)
 
         val st = rs.status(); assertEquals(8, st.size); assertTrue(st.none { it.toString().contains("4.") }, "현황에 점수가 나오지 않는다")
         val closed = rs.close()!!
         val res = rs.resultFor(closed, "d2")!!
         assertTrue(res.contains("⭐")); assertTrue(res.contains("공개하지 않습니다"))
         assertTrue(rs.publicSummary(closed).contains(db.user("d2")!!.nickname), "공개 요약에 상위자")
+        assertTrue(lastInfo().values.none { it.has("result") }, "마감만으로는 점수가 가지 않는다(결과 공개 뒤에만)")
+        rs.release(closed)
+        val after = lastInfo()
+        val mine = after["00000000-0000-0000-0000-000000000002"]!!.getAsJsonObject("result")
+        assertEquals(5, mine.getAsJsonArray("categories").size())
+        assertTrue(mine.toString().contains("value"))
+        assertTrue(!after["00000000-0000-0000-0000-000000000002"]!!.has("open"), "마감 뒤에는 진행 칸이 없다")
     }
 
     @Test fun teamDrawSwapConfirm() {

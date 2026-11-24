@@ -21,17 +21,19 @@ object Protocol {
     const val CLAIM = "nation.claim"; const val RELATION = "nation.relation"; const val LANDMARK = "landmark.captured"
     const val VACCINE = "vaccine.shard"; const val BLOODMOON_NOTICE = "zomapo.bloodmoon.notice"; const val BLOODMOON_START = "zomapo.bloodmoon.start"
     const val BLOODMOON_RESULT = "zomapo.bloodmoon.result"; const val NEST = "zomapo.nest"; const val DAILY = "zomapo.daily"
-    const val STARFORCE = "starforce.success"; const val STATS = "stats.snapshot"; const val RATING_SUBMIT = "rating.submit"
+    const val STARFORCE = "starforce.success"; const val STATS = "stats.snapshot"
     const val ALPHA = "zomapo.alpha"; const val RAID = "zomapo.raid"; const val FINALE = "zomapo.finale"; const val ENDING = "zomapo.ending"
     const val SERVER_EVENT = "server.event"
     // 봇 → 모드
     const val WELCOME = "welcome"; const val LINK_CONFIRMED = "link.confirmed"; const val LINK_REVOKED = "link.revoked"
-    const val NICKNAME_UPDATED = "nickname.updated"; const val NATION_ASSIGN = "nation.assign"; const val RATING_REQUEST = "rating.request"
+    const val NICKNAME_UPDATED = "nickname.updated"; const val NATION_ASSIGN = "nation.assign"
+    /** 상호평가는 디스코드에서만 한다. 게임에는 사람마다 '내 진행·내 결과'만 보낸다(보기 전용 상자창). */
+    const val RATING_INFO = "rating.info"
     const val ANNOUNCE = "announce"; const val STATS_REQUEST = "stats.request"
     const val ACK = "ack"
 
     /** 받는 쪽이 ack 를 돌려줘야 하는 종류(표의 ✔). */
-    val NEEDS_ACK = setOf(SEASON_START, LINK_CODE, DEATH, RELATION, LANDMARK, VACCINE, RATING_SUBMIT, ENDING,
+    val NEEDS_ACK = setOf(SEASON_START, LINK_CODE, DEATH, RELATION, LANDMARK, VACCINE, ENDING,
         LINK_CONFIRMED, LINK_REVOKED, NICKNAME_UPDATED, NATION_ASSIGN)
     /** 연결이 끊겨 있을 때 디스크에 남겼다가 다시 보낼 종류(잃으면 안 되는 것). */
     val DEFAULT_OUTBOX = setOf(DEATH, VACCINE, LANDMARK, ENDING)

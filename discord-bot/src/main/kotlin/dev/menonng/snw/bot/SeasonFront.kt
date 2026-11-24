@@ -73,7 +73,7 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
                 val r = ratings.start(e.getOption("항목")?.asString?.split(','), hours)
                 if (r == null) { e.reply("이미 열린 라운드가 있습니다.").setEphemeral(true).queue(); return }
                 for (u in ratings.participants()) dmId(u.discordId, "상호평가가 시작되었습니다. 평가할 사람 ${ratings.targetsFor(u.discordId).size}명 · 마감 ${hours}시간 뒤.\n잘 모르는 사람은 '잘 모름'을 고르세요. 누가 몇 점을 줬는지는 공개되지 않습니다.", Button.primary("rate:next", "평가하기"))
-                front.post(cfg.channels.notice, "⭐ 상호평가가 시작되었습니다. DM 의 [평가하기]로 참여해 주세요(마감 ${hours}시간 뒤).")
+                front.post(cfg.channels.notice, "⭐ 상호평가가 시작되었습니다. DM 의 [평가하기]로 참여해 주세요(마감 ${hours}시간 뒤). 평가는 디스코드에서만 하고, 게임 안 /평가 는 내 진행과 결과를 보는 창입니다.")
                 e.reply("라운드 ${r.id} 를 시작했습니다(항목 ${r.categories.joinToString { ratings.label(it) }}).").setEphemeral(true).queue()
             }
             "현황" -> {
@@ -88,6 +88,7 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
             "결과" -> {
                 val r = db.lastClosedRound() ?: run { e.reply("마감된 라운드가 없습니다.").setEphemeral(true).queue(); return }
                 for (u in ratings.participants()) ratings.resultFor(r, u.discordId)?.let { dmId(u.discordId, it) }
+                ratings.release(r)          // 게임 안 /평가 창에도 내 점수가 보이게
                 if (e.getOption("공개")?.asBoolean == true) front.post(cfg.channels.notice, ratings.publicSummary(r))
                 e.reply("결과를 보냈습니다.").setEphemeral(true).queue()
             }

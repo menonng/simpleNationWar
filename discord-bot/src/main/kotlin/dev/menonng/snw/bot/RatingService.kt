@@ -23,9 +23,7 @@ class RatingService(private val db: Db, private val hub: ModHub) {
         val cats = categories(categoryIds).map { it.id }
         val id = db.newRound(cats, now, now + hours * 3_600_000L)
         val users = participants()
-        hub.send(Protocol.RATING_REQUEST, mapOf("round" to id, "deadline" to now + hours * 3_600_000L,
-            "categories" to cats.map { mapOf("id" to it, "label" to label(it)) },
-            "pairs" to users.filter { it.mcUuid != null }.map { u -> mapOf("rater" to u.mcUuid, "targets" to users.filter { it.discordId != u.discordId && it.mcUuid != null }.map { t -> mapOf("uuid" to t.mcUuid, "nickname" to t.nickname) }) }))
+        pushInfo()
         return db.openRound()
     }
 
@@ -42,13 +40,8 @@ class RatingService(private val db: Db, private val hub: ModHub) {
         if (now > r.deadline || rater == target) return false
         if (participants().none { it.discordId == target }) return false
         db.putRating(r.id, rater, target, scores.filterKeys { it in r.categories }.mapValues { (_, v) -> v?.takeIf { it in 1..5 } }, now)
+        pushInfo()
         return true
-    }
-
-    /** 게임 안 창의 rating.submit(UUID 기준). */
-    fun submitFromGame(raterUuid: String, targetUuid: String, scores: Map<String, Int?>): Boolean {
-        val a = db.userByUuid(raterUuid) ?: return false; val b = db.userByUuid(targetUuid) ?: return false
-        return submit(a.discordId, b.discordId, scores)
     }
 
     /** /평가 현황: 누가 몇 명 평가했는지만(점수 없음). */
@@ -57,7 +50,29 @@ class RatingService(private val db: Db, private val hub: ModHub) {
         return participants().map { u -> val (d, t) = progress(r, u.discordId); Triple(u.nickname, d, t) }
     }
 
-    fun close(): Db.Round? { val r = db.openRound() ?: return null; db.setRoundStatus(r.id, "closed"); return r }
+    fun close(): Db.Round? { val r = db.openRound() ?: return null; db.setRoundStatus(r.id, "closed"); pushInfo(); return r }
+
+    /** 결과를 본인들에게 알린다(/평가 결과). 이때부터 게임 안 창에도 내 점수가 보인다. */
+    fun release(round: Db.Round) { db.put("rating.released", round.id.toString()); pushInfo() }
+
+    /**
+     * 게임으로 보내는 '내 평가 정보'(rating.info). 사람마다 자기 진행과(공개된 뒤) 자기 점수만 담는다.
+     * 모드는 그 사람에게만 보여 준다. 남의 점수·누가 몇 점을 줬는지는 보내지 않는다.
+     */
+    fun pushInfo() {
+        val open = db.openRound()
+        val last = db.lastClosedRound()
+        val released = last?.takeIf { db.get("rating.released") == it.id.toString() }
+        val agg = released?.let { aggregate(it) }
+        val players = participants().filter { it.mcUuid != null }.map { u ->
+            val m = linkedMapOf<String, Any?>("uuid" to u.mcUuid)
+            if (open != null) { val (d, t) = progress(open, u.discordId); m["open"] = mapOf("round" to open.id, "deadline" to open.deadline, "done" to d, "total" to t) }
+            agg?.get(u.discordId)?.let { mine -> m["result"] = mapOf("round" to released!!.id,
+                "categories" to released.categories.map { c -> mapOf("id" to c, "label" to label(c), "value" to (mine[c]?.value ?: 0.0), "n" to (mine[c]?.n ?: 0)) }) }
+            m
+        }
+        hub.send(Protocol.RATING_INFO, mapOf("players" to players))
+    }
 
     fun aggregate(round: Db.Round) = PeerRating.aggregate(db.ratings(round.id), round.categories)
 

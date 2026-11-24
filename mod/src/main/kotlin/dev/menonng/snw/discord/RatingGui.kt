@@ -1,96 +1,86 @@
 package dev.menonng.snw.discord
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
-import dev.menonng.snw.logic.discord.Protocol
 import dev.menonng.snw.ui.Gui
-import net.minecraft.core.component.DataComponents
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.UUID
+import kotlin.math.roundToInt
 
 /**
- * 게임 안 상호평가 창(docs/discord/peer-rating.md 2절, UI 는 무조건 상자창). 봇의 rating.request 를 받아 두고,
- * 대상 플레이어가 `/평가` 로 연다. 6줄: 맨 윗줄 = 대상(이전·다음·제출), 아래 5줄 = 항목마다 ⭐1~5·잘 모름.
- * 제출하면 rating.submit 으로 봇에 보내고(같은 DB), 다음 대상으로 넘어간다.
+ * 게임 안 상호평가 정보 창(보기 전용, UI 는 무조건 상자창). **평가는 디스코드에서만 한다**(peer-rating.md).
+ * 봇이 보내는 rating.info 에는 사람마다 자기 진행(디스코드에서 몇 명 평가했는지·마감)과, 결과가 공개된 뒤 자기 점수만 들어 있다.
+ * `/평가` 로 연다. 다른 사람의 점수나 누가 몇 점을 줬는지는 오지도 않고 보이지도 않는다.
  */
 object RatingGui {
-    data class Target(val uuid: String, val nickname: String)
-    data class Request(val round: Long, val deadline: Long, val categories: List<Pair<String, String>>, val targets: Map<String, List<Target>>)
+    data class Open(val round: Long, val deadline: Long, val done: Int, val total: Int)
+    data class Cat(val label: String, val value: Double, val n: Int)
+    data class Info(val open: Open?, val resultRound: Long?, val result: List<Cat>)
 
-    @Volatile var request: Request? = null; private set
-    private val cursor = HashMap<UUID, Int>()
-    private val picks = HashMap<Pair<UUID, String>, MutableMap<String, Int?>>()      // (평가자, 대상) → 항목 → 별(0 = 잘 모름)
-    private val done = HashMap<UUID, MutableSet<String>>()
-
-    fun onRequest(d: JsonObject) {
-        val cats = d.getAsJsonArray("categories")?.map { it.asJsonObject["id"].asString to it.asJsonObject["label"].asString }.orEmpty()
-        val targets = d.getAsJsonArray("pairs")?.associate { e ->
-            val o = e.asJsonObject
-            o["rater"].asString to o.getAsJsonArray("targets").map { t -> Target(t.asJsonObject["uuid"].asString, t.asJsonObject["nickname"]?.asString ?: "?") }
-        }.orEmpty()
-        request = Request(d["round"].asLong, d["deadline"].asLong, cats, targets)
-        cursor.clear(); picks.clear(); done.clear()
-    }
-
-    fun available(p: ServerPlayer): Boolean = request?.let { it.deadline > System.currentTimeMillis() && it.targets.containsKey(p.uuid.toString()) } == true
-
-    // 게임 글꼴에는 별 이모지가 없을 수 있어 노란 ★ 로 쓴다(고르지 않은 칸은 회색 ☆)
+    private val infos = HashMap<UUID, Info>()
     private val YELLOW = Gui.rgb(0xFFCC11)
-    private fun stars(n: Int): net.minecraft.network.chat.MutableComponent =
-        Gui.text("★".repeat(n), YELLOW).append(Gui.gray("☆".repeat(5 - n)))
-    private fun star(n: Int, on: Boolean): ItemStack =
-        Gui.item(if (on) Items.STAINED_GLASS_PANE.yellow() else Items.STAINED_GLASS_PANE.white(), stars(n), listOf(Gui.gray("$n 점")), glint = on)
+    private val fmt = DateTimeFormatter.ofPattern("M월 d일 HH:mm").withZone(ZoneId.of("Asia/Seoul"))
 
-    /** 운영자 미리보기: 봇 없이 예시 대상 3명으로 창을 띄운다(제출해도 봇이 없으면 보내지지 않는다). */
-    fun preview(p: ServerPlayer) {
-        val o = JsonObject()
-        o.addProperty("round", 0); o.addProperty("deadline", System.currentTimeMillis() + 3_600_000L)
-        o.add("categories", com.google.gson.JsonArray().apply {
-            dev.menonng.snw.logic.discord.PeerRating.DEFAULT_CATEGORIES.forEach { c -> add(JsonObject().apply { addProperty("id", c.id); addProperty("label", c.label) }) } })
-        o.add("pairs", com.google.gson.JsonArray().apply { add(JsonObject().apply {
-            addProperty("rater", p.uuid.toString())
-            add("targets", com.google.gson.JsonArray().apply { listOf("가람", "나래", "다온").forEach { n -> add(JsonObject().apply { addProperty("uuid", UUID.nameUUIDFromBytes(n.toByteArray()).toString()); addProperty("nickname", n) }) } })
-        }) })
-        onRequest(o)
-        open(p)
+    fun onInfo(d: JsonObject) {
+        infos.clear()
+        for (e in d.getAsJsonArray("players") ?: JsonArray()) {
+            val o = e.asJsonObject
+            val uuid = runCatching { UUID.fromString(o["uuid"].asString) }.getOrNull() ?: continue
+            val open = o.getAsJsonObject("open")?.let { Open(it["round"].asLong, it["deadline"].asLong, it["done"].asInt, it["total"].asInt) }
+            val res = o.getAsJsonObject("result")
+            val cats = res?.getAsJsonArray("categories")?.map { c -> c.asJsonObject.let { Cat(it["label"].asString, it["value"].asDouble, it["n"].asInt) } }.orEmpty()
+            infos[uuid] = Info(open, res?.get("round")?.asLong, cats)
+        }
     }
 
-    fun open(p: ServerPlayer) {
-        val req = request ?: run { p.sendSystemMessage(Gui.text("지금 열린 상호평가가 없습니다."), true); return }
-        val list = req.targets[p.uuid.toString()].orEmpty()
-        if (list.isEmpty()) { p.sendSystemMessage(Gui.text("평가할 사람이 없습니다."), true); return }
-        val i = (cursor[p.uuid] ?: list.indexOfFirst { it.uuid !in done[p.uuid].orEmpty() }.coerceAtLeast(0)).coerceIn(0, list.size - 1)
-        cursor[p.uuid] = i
-        val t = list[i]
-        val sel = picks.getOrPut(p.uuid to t.uuid) { linkedMapOf() }
-        val gui = Gui(Gui.text("상호평가 · ${t.nickname} (${i + 1}/${list.size})"))
-        for (k in 0 until 54) gui.set(k, Gui.filler())          // 빈 칸은 검은 유리: 별·버튼이 눈에 띄게
-        val doneN = done[p.uuid].orEmpty().size
-        gui.set(0, Gui.item(Items.ARROW, Gui.text("이전 사람"))) { pl -> cursor[pl.uuid] = (i - 1 + list.size) % list.size; open(pl) }
-        gui.set(4, Gui.item(Items.PLAYER_HEAD, Gui.text(t.nickname, Gui.rgb(0x39C5BB)), listOf(Gui.gray("평가한 사람 $doneN / ${list.size}"), Gui.gray("누가 몇 점을 줬는지는 공개되지 않습니다"))))
-        val complete = req.categories.all { sel.containsKey(it.first) }
-        gui.set(6, if (complete) Gui.item(Items.EMERALD, Gui.text("제출", Gui.rgb(0x55BB44)), listOf(Gui.gray("누르면 이 사람 평가를 보냅니다")))
-                   else Gui.item(Items.STAINED_GLASS_PANE.gray(), Gui.gray("제출"), listOf(Gui.gray("모든 항목을 고르면 제출할 수 있습니다")))) { pl ->
-            if (!req.categories.all { sel.containsKey(it.first) }) return@set
-            DiscordLink.send(Protocol.RATING_SUBMIT, mapOf("round" to req.round, "rater" to pl.uuid.toString(), "target" to t.uuid,
-                "scores" to req.categories.associate { (c, _) -> c to sel[c]?.takeIf { it in 1..5 } }))
-            done.getOrPut(pl.uuid) { HashSet() } += t.uuid
-            pl.sendSystemMessage(Gui.text("${t.nickname} 님 평가를 보냈습니다.", Gui.rgb(0x55BB44)), true)
-            val next = list.indexOfFirst { it.uuid !in done[pl.uuid].orEmpty() }
-            if (next < 0) { pl.closeContainer(); pl.sendSystemMessage(Gui.text("모두 평가했습니다. 고마워요!", Gui.rgb(0x55BB44))); return@set }
-            cursor[pl.uuid] = next; open(pl)
+    fun info(p: ServerPlayer): Info? = infos[p.uuid]
+
+    /** 접속했을 때 한 줄 알림이 필요한가: 평가가 열려 있고 아직 다 하지 않았다. */
+    fun needsReminder(p: ServerPlayer): Boolean = info(p)?.open?.let { it.done < it.total && it.deadline > System.currentTimeMillis() } == true
+
+    private fun plain(label: String) = label.replace(Regex("^[^가-힣A-Za-z0-9]+"), "").trim()     // 게임 글꼴에 없는 이모지는 뗀다
+
+    /** 게임 글꼴에는 별 이모지가 없을 수 있어 노란 ★ 로 쓴다(빈 별은 회색 ☆). */
+    private fun stars(v: Double): net.minecraft.network.chat.MutableComponent {
+        val n = v.roundToInt().coerceIn(1, 5)
+        return Gui.text("★".repeat(n), YELLOW).append(Gui.gray("☆".repeat(5 - n))).append(Gui.text("  " + "%.1f".format(v)))
+    }
+
+    fun open(p: ServerPlayer, info: Info? = info(p)) {
+        val gui = Gui(Gui.text("상호평가 · 내 정보"))
+        for (k in 0 until 27) gui.set(k, Gui.filler())
+        // 진행 상황
+        val o = info?.open
+        val status: ItemStack = when {
+            o == null -> Gui.item(Items.CLOCK, Gui.text("지금 진행 중인 평가가 없습니다"), listOf(Gui.gray("평가는 디스코드에서만 합니다")))
+            o.done >= o.total -> Gui.item(Items.CLOCK, Gui.text("평가를 모두 마쳤습니다", Gui.rgb(0x55BB44)),
+                listOf(Gui.gray("디스코드에서 ${o.done} / ${o.total} 명"), Gui.gray("마감 ${fmt.format(Instant.ofEpochMilli(o.deadline))}"), Gui.gray("마감 전까지 디스코드에서 고칠 수 있습니다")), glint = true)
+            else -> Gui.item(Items.CLOCK, Gui.text("상호평가 진행 중", YELLOW),
+                listOf(Gui.gray("디스코드에서 ${o.done} / ${o.total} 명 평가함"), Gui.gray("마감 ${fmt.format(Instant.ofEpochMilli(o.deadline))}"), Gui.gray("디스코드 DM 의 [평가하기]로 이어서 하세요")))
         }
-        gui.set(8, Gui.item(Items.ARROW, Gui.text("다음 사람"))) { pl -> cursor[pl.uuid] = (i + 1) % list.size; open(pl) }
-        req.categories.take(5).forEachIndexed { row, (c, label) ->
-            val base = (row + 1) * 9
-            gui.set(base, Gui.item(Items.PAPER, Gui.text(label.replace(Regex("^[^가-힣A-Za-z0-9]+"), "").trim())))   // 게임 글꼴에 없는 이모지는 뗀다
-            val cur = sel[c]
-            for (s in 1..5) gui.set(base + 1 + s, star(s, cur != null && cur in 1..5 && s <= cur)) { pl -> sel[c] = s; open(pl) }
-            gui.set(base + 8, Gui.item(Items.BOOK, Gui.text("잘 모름", if (cur == 0) Gui.rgb(0x39C5BB) else null), listOf(Gui.gray("잘 모르는 사람은 억지로 평가하지 않아도 됩니다")), glint = cur == 0)) { pl -> sel[c] = 0; open(pl) }
+        gui.set(4, status)
+        // 내 결과(공개된 뒤에만, 본인 것만)
+        if (info?.result.isNullOrEmpty()) {
+            gui.set(13, Gui.item(Items.BOOK, Gui.text("내 결과"), listOf(Gui.gray("결과가 공개되면 여기에서 볼 수 있습니다"))))
+        } else {
+            gui.set(10, Gui.item(Items.WRITABLE_BOOK, Gui.text("내 결과 (라운드 ${info!!.resultRound})"),
+                listOf(Gui.gray("나만 볼 수 있습니다"), Gui.gray("평가가 적게 모인 항목은 전체 평균 쪽으로 보정했습니다"))))
+            info.result.take(5).forEachIndexed { i, c ->
+                gui.set(12 + i, Gui.item(Items.NETHER_STAR, Gui.text(plain(c.label)), listOf(stars(c.value), Gui.gray("평가 ${c.n}명"))))
+            }
         }
+        gui.set(22, Gui.item(Items.PAPER, Gui.text("평가는 디스코드에서만 합니다"), listOf(Gui.gray("누가 누구에게 몇 점을 줬는지는 공개되지 않습니다"))))
         gui.open(p)
     }
 
-    @Suppress("unused") private val keepImport = DataComponents.ITEM_NAME
+    /** 운영자 미리보기: 봇 없이 예시 정보로 창을 띄운다. */
+    fun preview(p: ServerPlayer) {
+        val labels = listOf("⚔️ 전투" to 3.8, "🏗️ 건축" to 3.1, "⛏️ 생존·자원" to 4.2, "🤝 협동·소통" to 4.6, "🔥 열정(접속)" to 2.9)
+        open(p, Info(Open(1, System.currentTimeMillis() + 20 * 3_600_000L, 9, 14), 0, labels.map { Cat(it.first, it.second, 11) }))
+    }
 }

@@ -44,7 +44,6 @@
 | `zomapo.bloodmoon.start` | | `target` — 시작(규칙: zomApo 좀비 문서 '감염 레벨' 6절) |
 | `zomapo.bloodmoon.result` | | `target`, `success`, `wavesHeld`(0~3), `participants[]`(uuid) |
 | `stats.snapshot` | | `players[{uuid, k, d, a, dPvp, zombieKills, zombieScore, playtime}]` |
-| `rating.submit` | ✔ | `round`, `rater`, `target`, `scores{category: 1~5 \| null}` |
 
 ## 4. 봇 → 모드
 
@@ -55,7 +54,7 @@
 | `link.revoked` | ✔ | `uuid` |
 | `nickname.updated` | ✔ | `uuid`, `nickname` |
 | `nation.assign` | ✔ | `assignments[{uuid, nation, role}]`, `nationNames{id: name}` |
-| `rating.request` | | `round`, `deadline`, `categories[{id, label}]`, `pairs[{rater, targets[]}]` |
+| `rating.info` | | `players[{uuid, open?{round, deadline, done, total}, result?{round, categories[{id, label, value, n}]}}]` — 사람마다 자기 진행과 (공개 뒤) 자기 점수만. 평가는 디스코드에서만 하고 게임은 보기만 한다 |
 | `announce` | | `text`, `title?` |
 | `stats.request` | | `uuids[]?` (비면 전원) |
 
