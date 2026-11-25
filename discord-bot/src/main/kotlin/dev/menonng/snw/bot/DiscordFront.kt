@@ -31,8 +31,9 @@ class DiscordFront(private val cfg: BotConfig, token: String) : ListenerAdapter(
     /** 상호평가·국가 추첨 명령(SeasonFront 가 채운다). */
     var extraCommands: List<net.dv8tion.jda.api.interactions.commands.build.CommandData> = emptyList()
         set(value) { field = value; if (jda.status == JDA.Status.CONNECTED) registerCommands() }   // 이미 접속했으면 다시 등록(순서 경쟁 방지)
-    fun guild() = jda.getGuildById(cfg.guildId)
-    fun channel(id: String) = id.takeIf { it.isNotBlank() }?.let { guild()?.getTextChannelById(it) }
+    /** 설정의 id 가 숫자가 아니면(예시 문구가 남아 있으면) 오류 대신 없는 것으로 본다. 준비될 때 콘솔에 알린다. */
+    fun guild() = cfg.guildId.trim().toLongOrNull()?.let { jda.getGuildById(it) }
+    fun channel(id: String) = id.trim().toLongOrNull()?.let { guild()?.getTextChannelById(it) }
     fun post(id: String, text: String) { channel(id)?.sendMessage(text.take(1990))?.queue() }
 
     // ------------------------------------------------------------------ Front
@@ -54,6 +55,18 @@ class DiscordFront(private val cfg: BotConfig, token: String) : ListenerAdapter(
 
     // ------------------------------------------------------------------ 준비
     override fun onReady(event: ReadyEvent) {
+        println("[snw-bot] 디스코드 접속: ${event.jda.selfUser.name} (서버 ${event.jda.guilds.size}곳)")
+        val g = guild()
+        if (g == null) System.err.println("[snw-bot] ⚠ guildId(${cfg.guildId}) 서버를 찾지 못했습니다. 봇이 그 서버에 초대됐는지, 서버 ID 가 맞는지 확인하세요. 들어가 있는 서버: " +
+            event.jda.guilds.joinToString { "${it.name}(${it.id})" })
+        else {
+            println("[snw-bot] 서버: ${g.name}")
+            val c = cfg.channels
+            for ((name, id) in listOf("register" to c.register, "notice" to c.notice, "status" to c.status, "diary" to c.diary, "alerts" to c.alerts, "admin" to c.admin)) {
+                if (id.isBlank()) continue
+                println("[snw-bot]   채널 $name: " + (channel(id)?.let { "#${it.name} 확인" } ?: "⚠ 찾지 못함($id) — 채널 ID 를 다시 복사하세요"))
+            }
+        }
         registerCommands()
         // #등록 안내(한 번만)
         val reg = channel(cfg.channels.register) ?: return
@@ -79,6 +92,11 @@ class DiscordFront(private val cfg: BotConfig, token: String) : ListenerAdapter(
 
     // ------------------------------------------------------------------ 가입
     override fun onButtonInteraction(event: ButtonInteractionEvent) {
+        if (event.componentId !in setOf("snw:register", "snw:link")) return
+        guard(event, "버튼 ${event.componentId}") { button(event) }
+    }
+
+    private fun button(event: ButtonInteractionEvent) {
         when (event.componentId) {
             "snw:register" -> event.replyModal(Modal.create("snw:register", "생존자 등록").addComponents(
                 Label.of("마크 이름(Java 계정)", TextInput.create("mc", TextInputStyle.SHORT).setRequiredRange(3, 16).build()),
@@ -94,6 +112,11 @@ class DiscordFront(private val cfg: BotConfig, token: String) : ListenerAdapter(
     }
 
     override fun onModalInteraction(event: ModalInteractionEvent) {
+        if (event.modalId !in setOf("snw:register", "snw:link")) return
+        guard(event, "모달 ${event.modalId}") { modal(event) }
+    }
+
+    private fun modal(event: ModalInteractionEvent) {
         fun v(id: String) = event.values.firstOrNull { it.customId == id }?.asString?.trim().orEmpty()
         val uid = event.user.id
         when (event.modalId) {
@@ -124,6 +147,11 @@ class DiscordFront(private val cfg: BotConfig, token: String) : ListenerAdapter(
 
     // ------------------------------------------------------------------ 명령
     override fun onSlashCommandInteraction(event: SlashCommandInteractionEvent) {
+        if (event.name !in setOf("정보", "닉네임변경", "서버상태", "서버공지")) return
+        guard(event, "/${event.fullCommandName}") { slash(event) }
+    }
+
+    private fun slash(event: SlashCommandInteractionEvent) {
         when (event.name) {
             "정보" -> {
                 val target = event.getOption("유저")?.asUser ?: event.user

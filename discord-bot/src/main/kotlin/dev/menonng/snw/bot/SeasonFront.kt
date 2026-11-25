@@ -74,11 +74,14 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
 
     // ------------------------------------------------------------------ 명령
     override fun onSlashCommandInteraction(event: SlashCommandInteractionEvent) {
-        when (event.name) {
-            "평가" -> rating(event)
-            "팀" -> team(event)
-            "교환" -> swap(event)
-            "테스트" -> test(event)
+        if (event.name !in setOf("평가", "팀", "교환", "테스트")) return
+        guard(event, "/${event.fullCommandName}") {
+            when (event.name) {
+                "평가" -> rating(event)
+                "팀" -> team(event)
+                "교환" -> swap(event)
+                "테스트" -> test(event)
+            }
         }
     }
 
@@ -140,7 +143,7 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
     }
 
     private fun test(e: SlashCommandInteractionEvent) {
-        val kit = kit ?: return
+        val kit = kit ?: run { e.reply("시험 모드가 꺼져 있습니다(config 의 testMode).").setEphemeral(true).queue(); return }
         if (!isAdmin(e)) { e.reply("관리자만 쓸 수 있습니다.").setEphemeral(true).queue(); return }
         val me = e.user.id
         fun say(t: String) = e.reply("🧪 $t".take(1990)).setEphemeral(true).queue()
@@ -237,6 +240,12 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
     // ------------------------------------------------------------------ 버튼·모달·선택
     override fun onButtonInteraction(event: ButtonInteractionEvent) {
         val id = event.componentId
+        if (id != "rate:next" && id != "snw:buddy" && !id.startsWith("nick:")) return
+        guard(event, "버튼 " + (if (id.startsWith("nick:")) "닉네임 승인" else id)) { button(event) }
+    }
+
+    private fun button(event: ButtonInteractionEvent) {
+        val id = event.componentId
         when {
             id == "rate:next" -> {
                 val r = db.openRound() ?: run { event.reply("열린 평가가 없습니다.").queue(); return }
@@ -266,6 +275,10 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
 
     override fun onEntitySelectInteraction(event: EntitySelectInteractionEvent) {
         if (event.componentId != "snw:buddy:pick") return
+        guard(event, "단짝 선택") { buddyPick(event) }
+    }
+
+    private fun buddyPick(event: EntitySelectInteractionEvent) {
         val pick = event.mentions.users.firstOrNull() ?: return
         if (pick.id == event.user.id) { event.reply("자기 자신은 고를 수 없습니다.").setEphemeral(true).queue(); return }
         if (db.user(pick.id)?.linkedAt == null) { event.reply("그 사람은 아직 연동하지 않았습니다.").setEphemeral(true).queue(); return }
@@ -286,6 +299,10 @@ class SeasonFront(private val cfg: BotConfig, private val front: DiscordFront, p
 
     override fun onModalInteraction(event: ModalInteractionEvent) {
         if (!event.modalId.startsWith("rate:")) return
+        guard(event, "평가 모달") { rateModal(event) }
+    }
+
+    private fun rateModal(event: ModalInteractionEvent) {
         val (_, rid, target) = event.modalId.split(':')
         val r = db.openRound()
         if (r == null || r.id.toString() != rid) { event.reply("이 평가는 이미 마감되었습니다.").queue(); return }
